@@ -9,6 +9,8 @@
 /out/
 /build
 /dist
+.cache/
+.turbo/
 *.tsbuildinfo
 
 # Environment & Secrets (SANGAT PENTING: Jangan upload kredensial ke GitHub)
@@ -35,6 +37,8 @@ lerna-debug.log*
 # Testing & Coverage
 /coverage
 /.nyc_output
+test-results/
+playwright-report/
 
 # Editor & System Files
 .DS_Store
@@ -52,6 +56,14 @@ Desktop.ini
 *.njsproj
 *.sln
 *.sw?
+
+# AI Assistants & Temporary / Scratchpad scripts
+.claude/
+.opencode/
+.antigravitycli/
+.gemini/
+scratch/
+scripts/
 
 # Legacy / SQLite Databases
 *.db
