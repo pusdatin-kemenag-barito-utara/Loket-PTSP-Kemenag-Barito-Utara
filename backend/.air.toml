@@ -1,0 +1,21 @@
+# AIR Hot Reload — https://github.com/air-verse/air
+# Jalankan dari folder backend:  `air`
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o ./bin/server.exe ./cmd/server"
+  entrypoint = "./bin/server.exe"
+  include_ext = ["go", "sql", "toml"]
+  exclude_dir = ["bin", "tmp"]
+  exclude_regex = ["_test\\.go$"]
+  stop_on_error = true
+  send_interrupt = true
+  kill_delay = "1s"
+  delay = 1000
+
+[log]
+  time = true
+
+[misc]
+  clean_on_exit = true

@@ -1,0 +1,16 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Logo from '../components/Logo';
+import DisplayApp from '../components/DisplayApp';
+---
+
+<Layout title="Layar Monitor Antrian" noFooter>
+	<header class="flex items-center justify-between border-b border-white/5 px-6 py-3">
+		<Logo />
+		<p class="text-sm font-bold uppercase tracking-widest text-slate-400">Layar Antrian — Loket PTSP</p>
+	</header>
+
+	<main class="min-h-[calc(100vh-4rem)]">
+		<DisplayApp client:load />
+	</main>
+</Layout>

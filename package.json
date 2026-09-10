@@ -1,45 +1,25 @@
 {
-  "name": "loket-kemenag-next",
-  "version": "1.0.0",
+  "name": "loket-ptsp-kemenag",
   "private": true,
+  "version": "0.0.1",
+  "workspaces": [
+    "frontend"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push",
-    "db:seed": "tsx src/db/seed.ts"
-  },
-  "dependencies": {
-    "@marsidev/react-turnstile": "^0.5.0",
-    "@supabase/supabase-js": "^2.45.4",
-    "@types/three": "^0.185.1",
-    "bcryptjs": "^2.4.3",
-    "clsx": "^2.1.1",
-    "dotenv": "^16.4.5",
-    "drizzle-orm": "^0.33.0",
-    "framer-motion": "^12.42.2",
-    "jsonwebtoken": "^9.0.2",
-    "lucide-react": "^0.446.0",
-    "next": "^14.2.15",
-    "postgres": "^3.4.4",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "tailwind-merge": "^2.5.2",
-    "three": "^0.185.1"
+    "dev": "concurrently -k -n FE,BE -c cyan,green \"npm:dev:fe\" \"npm:dev:be\"",
+    "dev:fe": "cross-env ASTRO_DEV_BACKGROUND=1 npm run dev --workspace frontend",
+    "dev:be": "cd backend && air",
+    "build": "npm run build --workspace frontend",
+    "build:fe": "npm run build --workspace frontend",
+    "build:be": "cd backend && go build -ldflags=\"-s -w\" -o bin/server.exe ./cmd/server",
+    "build:all": "npm run build:fe && npm run build:be",
+    "install:all": "npm install && npm run install:be",
+    "install:be": "cd backend && go mod download",
+    "install:air": "go install github.com/air-verse/air@latest",
+    "seed": "cd backend && go run ./cmd/seed"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
-    "@types/jsonwebtoken": "^9.0.7",
-    "@types/node": "^20.16.10",
-    "@types/react": "^18.3.10",
-    "@types/react-dom": "^18.3.0",
-    "autoprefixer": "^10.4.20",
-    "drizzle-kit": "^0.24.2",
-    "postcss": "^8.4.47",
-    "tailwindcss": "^3.4.13",
-    "tsx": "^4.19.1",
-    "typescript": "^5.6.2"
+    "concurrently": "^9.1.2",
+    "cross-env": "^10.1.0"
   }
 }

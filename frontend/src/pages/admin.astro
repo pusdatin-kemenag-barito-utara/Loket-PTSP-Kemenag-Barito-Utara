@@ -1,0 +1,19 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Logo from '../components/Logo';
+import AdminApp from '../components/AdminApp';
+---
+
+<Layout title="Dashboard Petugas" noFooter>
+	<header class="border-b border-white/5">
+		<nav class="mx-auto flex max-w-7xl items-center justify-between px-4 py-5">
+			<Logo />
+			<span class="hidden text-sm font-bold uppercase tracking-widest text-slate-500 sm:block">Dashboard Petugas</span>
+			<a href="/display" target="_blank" class="btn btn-ghost px-4 py-2 text-sm">Buka Layar →</a>
+		</nav>
+	</header>
+
+	<main class="min-h-[calc(100vh-5rem)]">
+		<AdminApp client:load />
+	</main>
+</Layout>

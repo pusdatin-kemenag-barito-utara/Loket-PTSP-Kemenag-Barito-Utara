@@ -1,73 +1,41 @@
-# Dependencies
-/node_modules
-/.pnp
+# dependencies
+node_modules/
+.pnp
 .pnp.js
-.yarn/install-state.gz
+.packages
 
-# Next.js Build & Standalone Output
-/.next/
-/out/
-/build
-/dist
-.cache/
-.turbo/
-*.tsbuildinfo
+# build
+dist/
+build/
+.output/
+.vercel/
 
-# Environment & Secrets (SANGAT PENTING: Jangan upload kredensial ke GitHub)
+# env
 .env
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env*.local
-*.env
+.env.*.local
 
-# Production & Debug Logs
-logs
-*.log
+# Go
+/backend/tmp/
+/backend/bin/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# debug
 npm-debug.log*
 yarn-debug.log*
+yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
-.pnpm-debug.log*
 
-# Vercel & Deployment Caches
-.vercel
-
-# Testing & Coverage
-/coverage
-/.nyc_output
-test-results/
-playwright-report/
-
-# Editor & System Files
-.DS_Store
-*.pem
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# IDE Settings
-.vscode/
-!.vscode/extensions.json
-.idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# AI Assistants & Temporary / Scratchpad scripts
-.claude/
-.opencode/
-.antigravitycli/
-.gemini/
-scratch/
-scripts/
-
-# Legacy / SQLite Databases
-*.db
-*.sqlite
-*.sqlite-val
-*.sqlite-journal
-prisma/
+# misc
+*.log
+coverage/
+.cache/
