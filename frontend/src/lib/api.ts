@@ -34,9 +34,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-	categories: () => request<Category[]>('/api/v1/categories'),
+	categories: async () => (await request<Category[]>('/api/v1/categories')) || [],
 	stats: () => request<Stats>('/api/v1/stats'),
-	waiting: () => request<Queue[]>('/api/v1/queue/waiting'),
+	waiting: async () => (await request<Queue[]>('/api/v1/queue/waiting')) || [],
 	track: (id: string) => request<Ticket>(`/api/v1/queue/track?id=${encodeURIComponent(id)}`),
 	lookup: (code: string, number: number) =>
 		request<Ticket>(`/api/v1/queue/lookup?code=${encodeURIComponent(code)}&number=${number}`),
@@ -68,4 +68,78 @@ export const api = {
 			body: JSON.stringify({ queue_id: queueId, status }),
 		}),
 	maintenance: () => request<{ maintenance: boolean }>('/api/v1/pusdatin/maintenance'),
+	users: () => request<User[]>('/api/v1/users'),
+	createUser: (data: { name: string; username: string; password: string; role?: string }) =>
+		request<User>('/api/v1/users', {
+			method: 'POST',
+			body: JSON.stringify(data),
+		}),
+	updateUser: (id: string, data: { name: string; username: string; password?: string; role?: string }) =>
+		request<User>(`/api/v1/users/${encodeURIComponent(id)}`, {
+			method: 'PUT',
+			body: JSON.stringify(data),
+		}),
+	deleteUser: (id: string) =>
+		request<{ ok: boolean; message?: string }>(`/api/v1/users/${encodeURIComponent(id)}`, {
+			method: 'DELETE',
+		}),
+	allCategories: () => request<Category[]>('/api/v1/categories?all=true'),
+	createCategory: (data: { code: string; name: string; description?: string; display_order?: number; is_active?: boolean }) =>
+		request<Category>('/api/v1/categories', {
+			method: 'POST',
+			body: JSON.stringify(data),
+		}),
+	updateCategory: (id: string, data: { code: string; name: string; description?: string; display_order?: number; is_active?: boolean }) =>
+		request<Category>(`/api/v1/categories/${encodeURIComponent(id)}`, {
+			method: 'PUT',
+			body: JSON.stringify(data),
+		}),
+	deleteCategory: (id: string) =>
+		request<{ ok: boolean; message?: string }>(`/api/v1/categories/${encodeURIComponent(id)}`, {
+			method: 'DELETE',
+		}),
+	resetQueues: (categoryId?: string) =>
+		request<{ ok: boolean; message?: string }>('/api/v1/categories/reset-queues', {
+			method: 'POST',
+			body: JSON.stringify({ category_id: categoryId }),
+		}),
+	tvSettings: async () => {
+		const res = await request<any>('/api/v1/tv/settings');
+		if (res && typeof res.playlist === 'string') {
+			try {
+				res.playlist = JSON.parse(res.playlist);
+			} catch {
+				res.playlist = [];
+			}
+		}
+		return res;
+	},
+	updateTVSettings: (data: any) => {
+		const payload = {
+			...data,
+			playlist: typeof data.playlist === 'object' ? JSON.stringify(data.playlist) : data.playlist,
+		};
+		return request<{ ok: boolean; message: string }>('/api/v1/tv/settings', {
+			method: 'PUT',
+			body: JSON.stringify(payload),
+		});
+	},
+	uploadMedia: async (file: File) => {
+		const formData = new FormData();
+		formData.append('file', file);
+		const res = await fetch(`${API_BASE}/api/v1/media/upload`, {
+			method: 'POST',
+			credentials: 'include',
+			body: formData,
+		});
+		if (!res.ok) {
+			let message = `Upload gagal (${res.status})`;
+			try {
+				const body = await res.json();
+				message = body?.message ?? body?.error ?? message;
+			} catch {}
+			throw new ApiError(message, res.status);
+		}
+		return res.json() as Promise<{ ok: boolean; url: string; name: string; size: number; key: string }>;
+	},
 };

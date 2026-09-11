@@ -15,7 +15,10 @@ const (
 	EventQueueRecalled EventType = "queue_recalled"
 	EventQueueCompleted EventType = "queue_completed"
 	EventQueueSkipped EventType = "queue_skipped"
-	EventStats     EventType = "stats"
+	EventStats             EventType = "stats"
+	EventTVSettingsUpdated EventType = "tv_settings_updated"
+	EventCategoriesUpdated EventType = "categories_updated"
+	EventMaintenanceChanged EventType = "maintenance_changed"
 )
 
 type Message struct {

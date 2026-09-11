@@ -127,6 +127,9 @@ func (h *QueueHandler) Waiting(c fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(model.ErrorResponse{Error: "internal", Message: err.Error()})
 	}
+	if qs == nil {
+		qs = []model.Queue{}
+	}
 	return c.JSON(qs)
 }
 

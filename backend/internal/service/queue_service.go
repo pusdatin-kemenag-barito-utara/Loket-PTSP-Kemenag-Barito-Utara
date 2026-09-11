@@ -82,6 +82,16 @@ func (s *QueueService) broadcastStats(ctx context.Context) {
 	}
 }
 
+func (s *QueueService) ResetToday(ctx context.Context, categoryID string) error {
+	err := s.Queues.ResetToday(ctx, categoryID)
+	if err != nil {
+		return err
+	}
+	s.broadcastStats(ctx)
+	s.Hub.Broadcast("queue_reset", map[string]string{"category_id": categoryID})
+	return nil
+}
+
 var ErrQueueNotFound = repository.ErrNoQueue
 var ErrAlreadyCalled = repository.ErrAlreadyCalled
 var ErrQueueClosed = repository.ErrQueueClosed

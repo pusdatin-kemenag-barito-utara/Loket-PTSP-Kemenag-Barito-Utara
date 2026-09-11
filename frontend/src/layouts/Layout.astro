@@ -6,28 +6,48 @@ interface Props {
 	title?: string;
 	description?: string;
 	noFooter?: boolean;
+	darkBackground?: boolean;
 }
 
 const {
 	title = 'Loket PTSP',
 	description = 'Sistem Antrian Digital Pelayanan Terpadu Satu Pintu Kantor Kementerian Agama Kabupaten Barito Utara',
 	noFooter = false,
+	darkBackground = false,
 } = Astro.props;
 ---
 
 <!doctype html>
-<html lang="id" class="dark">
+<html lang="id">
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap"
+			rel="stylesheet"
+		/>
 		<title>{title} | Loket PTSP Kemenag Barito Utara</title>
 		<meta name="description" content={description} />
 		<meta property="og:title" content={title} />
 		<meta property="og:description" content={description} />
 		<meta property="og:type" content="website" />
+		<script is:inline>
+			if ('serviceWorker' in navigator) {
+				navigator.serviceWorker.getRegistrations().then(function (registrations) {
+					for (var i = 0; i < registrations.length; i++) {
+						registrations[i].unregister();
+					}
+				});
+			}
+		</script>
 	</head>
-	<body class="bg-night-950 text-slate-200 overflow-x-hidden">
+	<body
+		class={darkBackground ? "bg-slate-950 text-slate-100 overflow-x-hidden antialiased" : "bg-slate-50 text-slate-900 overflow-x-hidden antialiased"}
+		style={darkBackground ? "background-color: #020617;" : undefined}
+	>
 		<MaintenanceBlocker client:only="react" />
 		<slot />
 

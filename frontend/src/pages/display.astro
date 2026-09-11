@@ -1,16 +1,10 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import Logo from '../components/Logo';
-import DisplayApp from '../components/DisplayApp';
+import TVDisplay from '../components/TVDisplay';
 ---
 
-<Layout title="Layar Monitor Antrian" noFooter>
-	<header class="flex items-center justify-between border-b border-white/5 px-6 py-3">
-		<Logo />
-		<p class="text-sm font-bold uppercase tracking-widest text-slate-400">Layar Antrian — Loket PTSP</p>
-	</header>
-
-	<main class="min-h-[calc(100vh-4rem)]">
-		<DisplayApp client:load />
+<Layout title="Layar Monitor Antrian PTSP" noFooter darkBackground>
+	<main class="h-screen w-screen overflow-hidden bg-slate-950" style="background-color: #020617;">
+		<TVDisplay client:only="react" />
 	</main>
 </Layout>

@@ -7,9 +7,11 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/kemenag-baritoutara/loket/internal/database"
+	"github.com/kemenag-baritoutara/loket/internal/realtime"
 )
 
 type PusdatinRepository struct {
@@ -18,6 +20,10 @@ type PusdatinRepository struct {
 	Slug         string
 	FallbackMS   int
 	Client       *http.Client
+
+	mu           sync.RWMutex
+	cachedStatus bool
+	lastChecked  time.Time
 }
 
 type satelliteApp struct {
@@ -26,21 +32,15 @@ type satelliteApp struct {
 	Status string `db:"status" json:"status"`
 }
 
-// IsMaintenance returns true when the app is under maintenance.
-// Tier 1: if SatelliteURL contains "maintenance", force maintenance on.
-// Tier 2: query kemenag_pusdatin.satellite_apps for a row matching this app's
-//
-//	slug (id) or name; status = 'maintenance' means under maintenance.
-//
-// Tier 3: fallback HTTP check when the table is unreachable (optional).
-func (r *PusdatinRepository) IsMaintenance(ctx context.Context) (bool, error) {
+// CheckStatusDB performs the live check against kemenag_pusdatin.satellite_apps table.
+func (r *PusdatinRepository) CheckStatusDB(ctx context.Context) (bool, error) {
 	if strings.Contains(strings.ToLower(r.SatelliteURL), "maintenance") {
 		return true, nil
 	}
 
 	needle := r.Slug
 	if needle == "" {
-		needle = "loket"
+		needle = "loket_ptsp_kemenag"
 	}
 
 	var apps []satelliteApp
@@ -52,10 +52,78 @@ func (r *PusdatinRepository) IsMaintenance(ctx context.Context) (bool, error) {
 	if err != nil {
 		return r.httpFallback(ctx)
 	}
+
+	inMaint := false
 	if len(apps) > 0 {
-		return strings.ToLower(apps[0].Status) == "maintenance", nil
+		inMaint = strings.ToLower(apps[0].Status) == "maintenance"
 	}
-	return false, nil
+	return inMaint, nil
+}
+
+// StartWatcher checks the database every interval (e.g. 10s) and broadcasts
+// EventMaintenanceChanged to WebSocket clients immediately when the status changes.
+func (r *PusdatinRepository) StartWatcher(ctx context.Context, hub *realtime.Hub, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	go func() {
+		// Run initial check immediately
+		inMaint, err := r.CheckStatusDB(ctx)
+		if err == nil {
+			r.mu.Lock()
+			r.cachedStatus = inMaint
+			r.lastChecked = time.Now()
+			r.mu.Unlock()
+		}
+
+		for {
+			select {
+			case <-ctx.Done():
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				checkCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				inMaint, err := r.CheckStatusDB(checkCtx)
+				cancel()
+
+				if err == nil {
+					r.mu.Lock()
+					prev := r.cachedStatus
+					changed := (inMaint != prev)
+					r.cachedStatus = inMaint
+					r.lastChecked = time.Now()
+					r.mu.Unlock()
+
+					if changed {
+						hub.Broadcast(realtime.EventMaintenanceChanged, map[string]any{
+							"maintenance": inMaint,
+						})
+					}
+				}
+			}
+		}
+	}()
+}
+
+// IsMaintenance returns the cached maintenance state instantly (0ms, 0 database overhead).
+func (r *PusdatinRepository) IsMaintenance(ctx context.Context) (bool, error) {
+	r.mu.RLock()
+	if !r.lastChecked.IsZero() {
+		status := r.cachedStatus
+		r.mu.RUnlock()
+		return status, nil
+	}
+	r.mu.RUnlock()
+
+	inMaint, err := r.CheckStatusDB(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	r.mu.Lock()
+	r.cachedStatus = inMaint
+	r.lastChecked = time.Now()
+	r.mu.Unlock()
+
+	return inMaint, nil
 }
 
 // httpFallback checks the satellite endpoint for an explicit maintenance flag.

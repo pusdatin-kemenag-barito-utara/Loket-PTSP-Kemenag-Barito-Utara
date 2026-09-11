@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"strings"
 	"time"
@@ -43,6 +44,9 @@ func main() {
 	hub := realtime.NewHub()
 	go hub.Run()
 
+	// Dynamic Pusdatin database status watcher (checks every 10s and broadcasts changes)
+	pusdatinRepo.StartWatcher(context.Background(), hub, 10*time.Second)
+
 	// Services
 	authSvc := &service.AuthService{
 		Users:     userRepo,
@@ -58,18 +62,28 @@ func main() {
 	// Handlers
 	authH := &handler.AuthHandler{Svc: authSvc}
 	queueH := &handler.QueueHandler{Svc: queueSvc}
-	categoryH := &handler.CategoryHandler{Categories: categoryRepo}
+	categoryH := &handler.CategoryHandler{Categories: categoryRepo, QueueSvc: queueSvc, Hub: hub}
 	pusdatinH := &handler.PusdatinHandler{Pusdatin: pusdatinRepo}
+	userH := &handler.UserHandler{Users: userRepo}
 	wsH := &handler.WSHandler{Svc: queueSvc, Hub: hub}
+
+	tvSettingsRepo := &repository.TVSettingsRepository{DB: db}
+	r2Svc := service.NewR2Service(cfg)
+	tvH := &handler.TVHandler{Repo: tvSettingsRepo, R2: r2Svc, Hub: hub}
 
 	app := fiber.New(fiber.Config{
 		AppName:      "Loket PTSP Kemenag Barito Utara",
-		BodyLimit:    1 * 1024 * 1024,
+		BodyLimit:    300 * 1024 * 1024,
 		ServerHeader: "Loket-PTSP",
 	})
 
 	app.Use(recover.New())
-	app.Use(logger.New())
+	app.Use(logger.New(logger.Config{
+		Next: func(c fiber.Ctx) bool {
+			p := c.Path()
+			return p == "/health" || p == "/api/v1/pusdatin/maintenance"
+		},
+	}))
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     originsList(cfg.Server.Origins),
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
@@ -92,6 +106,8 @@ func main() {
 	v1.Get("/queue/lookup", queueH.Lookup)
 	v1.Post("/queue", queueH.CreateTicket)
 	v1.Get("/pusdatin/maintenance", pusdatinH.Maintenance)
+	v1.Get("/tv/settings", tvH.GetSettings)
+	v1.Get("/media/stream/*", tvH.StreamMedia)
 	v1.Get("/ws/queue", wsH.Handler())
 
 	// Protected (admin)
@@ -101,6 +117,22 @@ func main() {
 	admin.Post("/queue/call", queueH.Call)
 	admin.Post("/queue/recall", queueH.Recall)
 	admin.Post("/queue/adjust", queueH.Adjust)
+
+	// TV & Media Management (Cloudflare R2)
+	admin.Put("/tv/settings", tvH.UpdateSettings)
+	admin.Post("/media/upload", tvH.UploadMedia)
+
+	// User Management (CRUD)
+	admin.Get("/users", userH.List)
+	admin.Post("/users", userH.Create)
+	admin.Put("/users/:id", userH.Update)
+	admin.Delete("/users/:id", userH.Delete)
+
+	// Category / Seksi Management (CRUD) & Queue Reset
+	admin.Post("/categories", categoryH.Create)
+	admin.Put("/categories/:id", categoryH.Update)
+	admin.Delete("/categories/:id", categoryH.Delete)
+	admin.Post("/categories/reset-queues", categoryH.ResetQueues)
 
 	log.Printf("listening on :%s", cfg.Server.Port)
 	if err := app.Listen(":" + cfg.Server.Port); err != nil {

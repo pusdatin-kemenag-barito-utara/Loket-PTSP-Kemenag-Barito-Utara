@@ -319,3 +319,16 @@ func (r *QueueRepository) categoryInfo(ctx context.Context, id string) (string, 
 	}
 	return c.Code, c.Name, nil
 }
+
+func (r *QueueRepository) ResetToday(ctx context.Context, categoryID string) error {
+	if categoryID != "" && categoryID != "all" {
+		_, err := r.DB.ExecContext(ctx, `
+			DELETE FROM kemenag_loket.queues 
+			WHERE category_id = $1 AND created_at::date = CURRENT_DATE`, categoryID)
+		return err
+	}
+	_, err := r.DB.ExecContext(ctx, `
+		DELETE FROM kemenag_loket.queues 
+		WHERE created_at::date = CURRENT_DATE`)
+	return err
+}

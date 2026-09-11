@@ -114,3 +114,15 @@ type ErrorResponse struct {
 	Error   string `json:"error"`
 	Message string `json:"message"`
 }
+
+type TVSettings struct {
+	ID             string    `db:"id" json:"id"`
+	PlaybackMode   string    `db:"playback_mode" json:"playback_mode"`
+	SingleMode     string    `db:"single_mode" json:"single_mode"`
+	VideoID        string    `db:"video_id" json:"video_id"`
+	RunningText    string    `db:"running_text" json:"running_text"`
+	CustomMaklumat string    `db:"custom_maklumat" json:"custom_maklumat"`
+	OfficeAddress  string    `db:"office_address" json:"office_address"`
+	Playlist       string    `db:"playlist" json:"playlist"`
+	UpdatedAt      time.Time `db:"updated_at" json:"updated_at"`
+}

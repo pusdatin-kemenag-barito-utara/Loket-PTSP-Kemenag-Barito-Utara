@@ -63,7 +63,24 @@ CREATE TRIGGER trg_categories_updated_at
     BEFORE UPDATE ON kemenag_loket.categories
     FOR EACH ROW EXECUTE FUNCTION kemenag_loket.set_updated_at();
 
+CREATE TABLE IF NOT EXISTS kemenag_loket.tv_settings (
+    id              text PRIMARY KEY DEFAULT 'default',
+    playback_mode   text NOT NULL DEFAULT 'playlist',
+    single_mode     text NOT NULL DEFAULT 'info',
+    video_id        text NOT NULL DEFAULT '',
+    running_text    text NOT NULL DEFAULT '',
+    custom_maklumat text NOT NULL DEFAULT '',
+    office_address  text NOT NULL DEFAULT '',
+    playlist        jsonb NOT NULL DEFAULT '[]'::jsonb,
+    updated_at      timestamptz NOT NULL DEFAULT now()
+);
+
 DROP TRIGGER IF EXISTS trg_queues_updated_at ON kemenag_loket.queues;
 CREATE TRIGGER trg_queues_updated_at
     BEFORE UPDATE ON kemenag_loket.queues
+    FOR EACH ROW EXECUTE FUNCTION kemenag_loket.set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_tv_settings_updated_at ON kemenag_loket.tv_settings;
+CREATE TRIGGER trg_tv_settings_updated_at
+    BEFORE UPDATE ON kemenag_loket.tv_settings
     FOR EACH ROW EXECUTE FUNCTION kemenag_loket.set_updated_at();
