@@ -6,13 +6,13 @@
 # ==============================================================================
 
 # --- Stage 1: Frontend Build ---
-FROM node:22-alpine AS frontend-builder
+FROM node:22-bookworm-slim AS frontend-builder
 WORKDIR /app
 
-# Install dependencies
+# Install dependencies with Linux platform bindings
 COPY package*.json ./
 COPY frontend/package*.json ./frontend/
-RUN npm ci
+RUN npm install
 
 # Copy frontend source and build Astro static site
 COPY frontend/ ./frontend/
