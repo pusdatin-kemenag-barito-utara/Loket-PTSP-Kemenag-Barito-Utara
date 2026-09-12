@@ -22,8 +22,9 @@ ENV PUBLIC_TURNSTILE_SITE_KEY=$PUBLIC_TURNSTILE_SITE_KEY
 RUN npm run build
 
 # --- Stage 2: Backend Build ---
-FROM golang:1.24-alpine AS backend-builder
+FROM golang:alpine AS backend-builder
 WORKDIR /app/backend
+ENV GOTOOLCHAIN=auto
 RUN apk add --no-cache git ca-certificates tzdata
 COPY backend/go.mod backend/go.sum* ./
 RUN go mod download
