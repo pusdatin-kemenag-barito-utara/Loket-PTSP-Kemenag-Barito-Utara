@@ -112,12 +112,12 @@ func Load() *Config {
 	cfg.Pusdatin.SatelliteSlug = getEnv("SATELLITE_APP_SLUG", "")
 	cfg.Pusdatin.FallbackMS = getEnvInt("PUSDAIN_FALLBACK_MS", 3000)
 
-	cfg.R2.AccountID = getEnv("R2_ACCOUNT_ID", "c98eb02b668a13c16b14ebff0ef6a37c")
-	cfg.R2.EndpointURL = getEnv("R2_ENDPOINT_URL", "https://c98eb02b668a13c16b14ebff0ef6a37c.r2.cloudflarestorage.com")
-	cfg.R2.AccessKeyID = getEnv("R2_ACCESS_KEY_ID", "9bc8ad19247c7928d530334378824e97")
-	cfg.R2.SecretAccessKey = getEnv("R2_SECRET_ACCESS_KEY", "c2324fc6bb4a8790046a68616766d8bde947a6ac45f22da60f57a519a98faf17")
+	cfg.R2.AccountID = getEnv("R2_ACCOUNT_ID", "")
+	cfg.R2.EndpointURL = getEnv("R2_ENDPOINT_URL", "")
+	cfg.R2.AccessKeyID = getEnv("R2_ACCESS_KEY_ID", "")
+	cfg.R2.SecretAccessKey = getEnv("R2_SECRET_ACCESS_KEY", "")
 	cfg.R2.Bucket = getEnv("R2_BUCKET", "loket-ptsp")
-	cfg.R2.PublicURL = getEnv("R2_PUBLIC_URL", "https://pub-8f045be228ce4782863b2a6928a4957c.r2.dev")
+	cfg.R2.PublicURL = getEnv("R2_PUBLIC_URL", "")
 
 	return cfg
 }

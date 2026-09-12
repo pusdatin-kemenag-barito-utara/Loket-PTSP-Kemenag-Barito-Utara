@@ -42,6 +42,30 @@ export default function AdminApp() {
 	};
 
 	React.useEffect(() => {
+		// Prevent BFCache / History back button resurrection of dashboard
+		const handlePageShow = (event: PageTransitionEvent) => {
+			if (event.persisted) {
+				// Page restored from browser back-forward cache: verify authentication immediately
+				api.me()
+					.then((currentUser) => {
+						if (!currentUser) {
+							window.location.replace('/pusdatin/auth');
+						} else {
+							setUser(currentUser);
+						}
+					})
+					.catch(() => {
+						setUser(null);
+						window.location.replace('/pusdatin/auth');
+					});
+			}
+		};
+
+		window.addEventListener('pageshow', handlePageShow);
+		return () => window.removeEventListener('pageshow', handlePageShow);
+	}, []);
+
+	React.useEffect(() => {
 		let cancelled = false;
 		const load = async () => {
 			try {
@@ -51,11 +75,13 @@ export default function AdminApp() {
 				setQueues(Array.isArray(waiting) ? waiting : []);
 				setCategories(Array.isArray(cats) ? cats : []);
 			} catch (err) {
-				if (err instanceof Error && 'status' in err && (err as { status: number }).status === 401) {
-					window.location.href = '/pusdatin/auth';
-					return;
-				}
-				setError('Gagal memuat data awal admin.');
+				if (cancelled) return;
+				// Unauthenticated: wipe sensitive state and replace location immediately
+				setUser(null);
+				setQueues([]);
+				setCategories([]);
+				window.location.replace('/pusdatin/auth');
+				return;
 			} finally {
 				if (!cancelled) setLoading(false);
 			}
@@ -123,10 +149,27 @@ export default function AdminApp() {
 	const handleSkip = (queueId: string) => executeAction(queueId, () => api.adjustQueue(queueId, 'skipped'));
 
 	const handleLogout = async () => {
+		// 1. Immediately wipe all memory state
+		setUser(null);
+		setQueues([]);
+		setCategories([]);
+		setWsConnected(false);
+
+		// 2. Clear client storage
+		try {
+			sessionStorage.clear();
+		} catch {
+			/* ignore */
+		}
+
+		// 3. Notify backend to expire cookie & emit Clear-Site-Data
 		try {
 			await api.logout();
+		} catch {
+			/* ignore */
 		} finally {
-			window.location.href = '/pusdatin/auth';
+			// 4. Replace history entry so browser Back button CANNOT return to /admin
+			window.location.replace('/pusdatin/auth');
 		}
 	};
 

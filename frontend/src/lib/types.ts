@@ -110,6 +110,7 @@ export interface TVSettings {
 	custom_maklumat: string;
 	office_address: string;
 	playlist: TVPlaylistItem[];
+	theme?: 'light' | 'dark';
 	updated_at?: string;
 }
 

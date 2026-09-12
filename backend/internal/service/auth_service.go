@@ -37,18 +37,21 @@ type AuthService struct {
 var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrInvalidToken       = errors.New("invalid or expired token")
+	dummyPasswordHash, _  = bcrypt.GenerateFromPassword([]byte("guard-against-timing-attacks-kemenag"), bcrypt.DefaultCost)
 )
 
 func (s *AuthService) Login(ctx context.Context, req *model.LoginRequest) (*model.LoginResponse, error) {
 	if s.Turnstile != nil {
 		ok, err := s.Turnstile.Verify(ctx, req.Token)
 		if err != nil || !ok {
-			return nil, errors.New("captcha verification failed")
+			return nil, errors.New("verifikasi captcha Cloudflare gagal")
 		}
 	}
 
 	user, err := s.Users.FindByUsername(ctx, req.Username)
 	if err != nil {
+		// Run dummy comparison to mitigate timing-based username enumeration
+		_ = bcrypt.CompareHashAndPassword(dummyPasswordHash, []byte(req.Password))
 		return nil, ErrInvalidCredentials
 	}
 

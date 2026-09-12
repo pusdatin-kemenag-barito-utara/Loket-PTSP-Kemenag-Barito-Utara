@@ -43,6 +43,9 @@ export default function AdminTVSettings() {
 	const [runningText, setRunningText] = React.useState(DEFAULT_RUNNING_TEXT);
 	const [officeAddress, setOfficeAddress] = React.useState(DEFAULT_ADDRESS);
 
+	// TV Theme: Light (Clean White) vs Dark Mode
+	const [theme, setTheme] = React.useState<'light' | 'dark'>('light');
+
 	// Audio & Chime
 	const [chimeTone, setChimeTone] = React.useState<ChimeTone>('bank');
 	const [voiceRate, setVoiceRate] = React.useState<string>('0.9');
@@ -118,6 +121,9 @@ export default function AdminTVSettings() {
 			const savedAddress = localStorage.getItem('ptsp_tv_office_address');
 			if (savedAddress) setOfficeAddress(savedAddress);
 
+			const savedTheme = localStorage.getItem('ptsp_tv_theme') as 'light' | 'dark';
+			if (savedTheme === 'light' || savedTheme === 'dark') setTheme(savedTheme);
+
 			const savedChime = localStorage.getItem('ptsp_tv_chime_tone') as ChimeTone;
 			if (savedChime) setChimeTone(savedChime);
 
@@ -142,6 +148,9 @@ export default function AdminTVSettings() {
 				}
 				if (res.office_address) {
 					setOfficeAddress(res.office_address);
+				}
+				if (res.theme === 'light' || res.theme === 'dark') {
+					setTheme(res.theme);
 				}
 				if (Array.isArray(res.playlist) && res.playlist.length > 0) {
 					setPlaylist(res.playlist);
@@ -171,6 +180,7 @@ export default function AdminTVSettings() {
 					custom_maklumat: DEFAULT_MAKLUMAT,
 					office_address: officeAddress.trim() || DEFAULT_ADDRESS,
 					playlist: playlist,
+					theme: theme,
 				})
 				.catch((err) => {
 					console.warn('Backend TV settings save failed, falling back to local storage:', err);
@@ -178,6 +188,7 @@ export default function AdminTVSettings() {
 
 			// 2. Persist to local storage for immediate tab sync
 			localStorage.setItem('ptsp_tv_playback_mode', playbackMode);
+			localStorage.setItem('ptsp_tv_theme', theme);
 			localStorage.setItem('ptsp_tv_playlist', JSON.stringify(playlist));
 			localStorage.setItem('ptsp_tv_media_mode', singleMode);
 			if (effectiveVideoId) {
@@ -643,11 +654,87 @@ export default function AdminTVSettings() {
 			</div>
 
 			<form onSubmit={handleSave} className="space-y-8">
-				{/* 1. Pemilihan Metode Penayangan */}
+				{/* 1. Pengaturan Tema Tampilan Layar TV */}
+				<div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
+					<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+						<div>
+							<h4 className="text-sm font-black text-slate-900 tracking-tight flex items-center gap-2">
+								1. Tema Tampilan Layar TV Monitor (Light / Dark)
+							</h4>
+							<p className="text-xs text-slate-500 mt-0.5">
+								Pilih mode tampilan layar TV. Perubahan langsung tersinkronisasi ke seluruh layar monitor secara real-time.
+							</p>
+						</div>
+						<span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800 shrink-0 w-fit">
+							{theme === 'light' ? 'Mode Terang Aktif' : 'Mode Gelap Aktif'}
+						</span>
+					</div>
+
+					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+						{/* Mode Light (Putih Bersih) */}
+						<label
+							className={`flex items-start gap-3.5 p-4 rounded-2xl border cursor-pointer transition-all ${
+								theme === 'light'
+									? 'border-emerald-600 bg-emerald-50/70 ring-2 ring-emerald-600/20 shadow-xs'
+									: 'border-slate-200 bg-slate-50/60 hover:bg-slate-100/70 text-slate-700'
+							}`}
+						>
+							<input
+								type="radio"
+								name="tvTheme"
+								value="light"
+								checked={theme === 'light'}
+								onChange={() => setTheme('light')}
+								className="accent-emerald-600 h-5 w-5 mt-0.5 shrink-0"
+							/>
+							<div>
+								<div className="flex items-center gap-2">
+									<p className="text-sm font-black text-slate-900">
+										Tema Terang (Clean Light White)
+									</p>
+									<span className="rounded bg-emerald-700 px-2 py-0.5 text-[10px] font-extrabold text-white">
+										STANDAR LOBI
+									</span>
+								</div>
+								<p className="text-xs text-slate-500 mt-1 leading-relaxed">
+									Latar belakang putih bersih dan abu-abu cerah dengan tulisan hitam pekat beraksen hijau Kemenag. Terang, elegan, dan sangat mudah dibaca dari jarak jauh di lobi pelayanan.
+								</p>
+							</div>
+						</label>
+
+						{/* Mode Dark (Gelap Sinematik) */}
+						<label
+							className={`flex items-start gap-3.5 p-4 rounded-2xl border cursor-pointer transition-all ${
+								theme === 'dark'
+									? 'border-emerald-600 bg-emerald-50/70 ring-2 ring-emerald-600/20 shadow-xs'
+									: 'border-slate-200 bg-slate-50/60 hover:bg-slate-100/70 text-slate-700'
+							}`}
+						>
+							<input
+								type="radio"
+								name="tvTheme"
+								value="dark"
+								checked={theme === 'dark'}
+								onChange={() => setTheme('dark')}
+								className="accent-emerald-600 h-5 w-5 mt-0.5 shrink-0"
+							/>
+							<div>
+								<p className="text-sm font-black text-slate-900">
+									Tema Gelap (Cinematic Dark Mode)
+								</p>
+								<p className="text-xs text-slate-500 mt-1 leading-relaxed">
+									Latar belakang gelap sinematik dengan aksen emas dan hijau menyala. Cocok untuk ruangan dengan pencahayaan redup.
+								</p>
+							</div>
+						</label>
+					</div>
+				</div>
+
+				{/* 2. Pemilihan Metode Penayangan */}
 				<div className="space-y-3">
 					<div className="flex items-center justify-between">
 						<label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-							1. Metode Penayangan Media (Layar Kiri TV)
+							2. Metode Penayangan Media (Layar Kiri TV)
 						</label>
 						<span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
 							{playbackMode === 'playlist' ? 'Mode Bergantian Aktif' : 'Mode Tunggal Aktif'}

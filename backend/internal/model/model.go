@@ -124,5 +124,6 @@ type TVSettings struct {
 	CustomMaklumat string    `db:"custom_maklumat" json:"custom_maklumat"`
 	OfficeAddress  string    `db:"office_address" json:"office_address"`
 	Playlist       string    `db:"playlist" json:"playlist"`
+	Theme          string    `db:"theme" json:"theme"`
 	UpdatedAt      time.Time `db:"updated_at" json:"updated_at"`
 }

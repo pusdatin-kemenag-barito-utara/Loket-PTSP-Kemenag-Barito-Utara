@@ -13,6 +13,7 @@ interface TVVideoPlayerProps {
 	agencyTagline?: string;
 	audioEnabled?: boolean;
 	isCallingQueue?: boolean;
+	theme?: 'light' | 'dark';
 }
 
 export default function TVVideoPlayer({
@@ -25,6 +26,7 @@ export default function TVVideoPlayer({
 	agencyTagline = 'Pelayanan Terpadu Satu Pintu (PTSP) • IKHLAS BERAMAL',
 	audioEnabled = false,
 	isCallingQueue = false,
+	theme = 'light',
 }: TVVideoPlayerProps) {
 	const [localVideoUrl, setLocalVideoUrl] = React.useState<string | null>(null);
 	const [videoProgress, setVideoProgress] = React.useState(0);
@@ -352,7 +354,13 @@ function getEffectiveVideoUrl(url?: string): string | null {
 		: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400';
 
 	return (
-		<div className="relative w-full aspect-video overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950 shadow-2xl flex flex-col justify-between">
+		<div
+			className={`relative w-full aspect-video shrink-0 overflow-hidden rounded-3xl border flex flex-col justify-between transition-colors duration-300 ${
+				theme === 'light'
+					? 'border-slate-200/90 bg-slate-950 shadow-md'
+					: 'border-slate-800/80 bg-slate-950 shadow-2xl'
+			}`}
+		>
 			{/* Media Renderers with Smooth Crossfade Animation */}
 			<div
 				className={`relative h-full w-full transition-all duration-500 ease-in-out ${

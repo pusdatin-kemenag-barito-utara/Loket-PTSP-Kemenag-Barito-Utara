@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"time"
+
 	"github.com/gofiber/fiber/v3"
 	"github.com/kemenag-baritoutara/loket/internal/middleware"
 	"github.com/kemenag-baritoutara/loket/internal/model"
@@ -14,6 +16,9 @@ type AuthHandler struct {
 }
 
 func (h *AuthHandler) Login(c fiber.Ctx) error {
+	c.Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+	c.Set("Pragma", "no-cache")
+
 	req := &model.LoginRequest{}
 	if err := c.Bind().Body(req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(model.ErrorResponse{Error: "bad request", Message: "invalid body"})
@@ -49,11 +54,19 @@ func (h *AuthHandler) Logout(c fiber.Ctx) error {
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
+		Expires:  time.Now().Add(-100 * time.Hour),
 		HTTPOnly: true,
 		Secure:   c.Protocol() == "https",
 		SameSite: "Lax",
 	})
-	return c.JSON(fiber.Map{"ok": true})
+
+	// Instruct modern browsers to wipe cache, cookies, and local session storage for this origin
+	c.Set("Clear-Site-Data", `"cache", "cookies", "storage"`)
+	c.Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
+	c.Set("Pragma", "no-cache")
+	c.Set("Expires", "0")
+
+	return c.JSON(fiber.Map{"ok": true, "message": "logged out successfully"})
 }
 
 func (h *AuthHandler) Me(c fiber.Ctx) error {

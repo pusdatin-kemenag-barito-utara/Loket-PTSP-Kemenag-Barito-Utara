@@ -26,7 +26,41 @@ export default function LoginForm({ siteKey }: { siteKey: string }) {
 	const [token, setToken] = React.useState('');
 	const [error, setError] = React.useState<string | null>(null);
 	const [loading, setLoading] = React.useState(false);
+	const [failedAttempts, setFailedAttempts] = React.useState(0);
+	const [lockoutSeconds, setLockoutSeconds] = React.useState(0);
 	const captchaRef = React.useRef<HTMLDivElement>(null);
+
+	// If already authenticated, redirect immediately to /admin without creating history entry
+	React.useEffect(() => {
+		let isMounted = true;
+		api.me()
+			.then((user) => {
+				if (isMounted && user) {
+					window.location.replace('/admin');
+				}
+			})
+			.catch(() => {
+				/* user is not authenticated, stay on login page */
+			});
+		return () => {
+			isMounted = false;
+		};
+	}, []);
+
+	// Client-side lockout countdown timer
+	React.useEffect(() => {
+		if (lockoutSeconds <= 0) return;
+		const timer = setInterval(() => {
+			setLockoutSeconds((prev) => {
+				if (prev <= 1) {
+					clearInterval(timer);
+					return 0;
+				}
+				return prev - 1;
+			});
+		}, 1000);
+		return () => clearInterval(timer);
+	}, [lockoutSeconds]);
 
 	React.useEffect(() => {
 		if (!siteKey || !captchaRef.current) return;
@@ -62,17 +96,38 @@ export default function LoginForm({ siteKey }: { siteKey: string }) {
 
 	const submit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		if (!username || !password) {
+		if (lockoutSeconds > 0) return;
+
+		const cleanUser = username.trim();
+		if (!cleanUser || !password) {
 			setError('Username dan password wajib diisi.');
 			return;
 		}
+
 		setLoading(true);
 		setError(null);
+
 		try {
-			await api.login(username, password, token);
-			window.location.href = '/admin';
+			await api.login(cleanUser, password, token);
+			// Successful login: replace history so user cannot click Back into login
+			window.location.replace('/admin');
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Gagal masuk.');
+			const nextAttempts = failedAttempts + 1;
+			setFailedAttempts(nextAttempts);
+
+			// If client reaches 5 consecutive failures, enforce a 60-second cooldown
+			if (nextAttempts >= 5) {
+				setLockoutSeconds(60);
+				setError('Terlalu banyak percobaan gagal. Silakan tunggu 60 detik sebelum mencoba kembali.');
+			} else if (err instanceof Error && 'status' in err && (err as { status: number }).status === 429) {
+				setLockoutSeconds(900); // 15 minutes server lockout
+				setError('Akses login dibatasi sementara oleh sistem keamanan server (15 menit).');
+			} else {
+				setError(err instanceof Error ? err.message : 'Username atau password salah.');
+			}
+
+			// Clear password field for safety
+			setPassword('');
 		} finally {
 			setLoading(false);
 		}
@@ -133,10 +188,14 @@ export default function LoginForm({ siteKey }: { siteKey: string }) {
 
 			<button
 				type="submit"
-				disabled={loading}
-				className="btn btn-gold mt-5 w-full text-sm font-bold shadow-lg"
+				disabled={loading || lockoutSeconds > 0}
+				className="btn btn-gold mt-5 w-full text-sm font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
 			>
-				{loading ? 'Memproses...' : 'Masuk'}
+				{lockoutSeconds > 0
+					? `Terkunci Sementara (${lockoutSeconds}s)`
+					: loading
+					? 'Memproses Autentikasi...'
+					: 'Masuk Portal Admin'}
 			</button>
 		</form>
 	);

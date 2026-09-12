@@ -3,17 +3,23 @@ package main
 import (
 	"context"
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
+	"github.com/gofiber/fiber/v3/middleware/helmet"
+	"github.com/gofiber/fiber/v3/middleware/limiter"
 	"github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/gofiber/fiber/v3/middleware/recover"
+	"github.com/gofiber/fiber/v3/middleware/static"
 	"github.com/kemenag-baritoutara/loket/internal/config"
 	"github.com/kemenag-baritoutara/loket/internal/database"
 	"github.com/kemenag-baritoutara/loket/internal/handler"
 	"github.com/kemenag-baritoutara/loket/internal/middleware"
+	"github.com/kemenag-baritoutara/loket/internal/model"
 	"github.com/kemenag-baritoutara/loket/internal/realtime"
 	"github.com/kemenag-baritoutara/loket/internal/repository"
 	"github.com/kemenag-baritoutara/loket/internal/service"
@@ -21,6 +27,7 @@ import (
 
 func main() {
 	cfg := config.Load()
+	log.Printf("[Config] Environment terinjeksi: APP_ENV=%s, PORT=%s, Database terhubung=%t", cfg.Server.Env, cfg.Server.Port, cfg.Database.URL != "")
 
 	db, err := database.Connect(cfg.Database.URL)
 	if err != nil {
@@ -78,6 +85,7 @@ func main() {
 	})
 
 	app.Use(recover.New())
+	app.Use(helmet.New())
 	app.Use(logger.New(logger.Config{
 		Next: func(c fiber.Ctx) bool {
 			p := c.Path()
@@ -95,10 +103,26 @@ func main() {
 		return c.JSON(fiber.Map{"status": "ok"})
 	})
 
+	// Strict anti-bruteforce rate limiter for login
+	loginLimiter := limiter.New(limiter.Config{
+		Max:        5,
+		Expiration: 15 * time.Minute,
+		KeyGenerator: func(c fiber.Ctx) string {
+			return c.IP()
+		},
+		SkipSuccessfulRequests: true,
+		LimitReached: func(c fiber.Ctx) error {
+			return c.Status(fiber.StatusTooManyRequests).JSON(model.ErrorResponse{
+				Error:   "too_many_attempts",
+				Message: "Terlalu banyak percobaan masuk gagal. Sistem mengunci login sementara selama 15 menit demi keamanan.",
+			})
+		},
+	})
+
 	v1 := app.Group("/api/v1")
 
 	// Public
-	v1.Post("/auth/login", authH.Login)
+	v1.Post("/auth/login", loginLimiter, authH.Login)
 	v1.Get("/categories", categoryH.List)
 	v1.Get("/stats", queueH.Stats)
 	v1.Get("/queue/waiting", queueH.Waiting)
@@ -133,6 +157,45 @@ func main() {
 	admin.Put("/categories/:id", categoryH.Update)
 	admin.Delete("/categories/:id", categoryH.Delete)
 	admin.Post("/categories/reset-queues", categoryH.ResetQueues)
+
+	// Static Frontend Serving (Production)
+	staticDir := os.Getenv("STATIC_DIR")
+	if staticDir == "" {
+		if _, err := os.Stat("./frontend/dist"); err == nil {
+			staticDir = "./frontend/dist"
+		} else if _, err := os.Stat("./dist"); err == nil {
+			staticDir = "./dist"
+		}
+	}
+
+	if staticDir != "" {
+		log.Printf("[Static] Serving frontend static assets from %s", staticDir)
+		app.Use("/", static.New(staticDir, static.Config{
+			IndexNames: []string{"index.html"},
+			Compress:   true,
+		}))
+
+		// Fallback for Astro SSG pages without trailing slash (e.g. /kiosk -> /kiosk/index.html)
+		app.Use(func(c fiber.Ctx) error {
+			p := c.Path()
+			if strings.HasPrefix(p, "/api") || strings.HasPrefix(p, "/ws") || p == "/health" {
+				return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "not found"})
+			}
+
+			cleanPath := strings.Trim(p, "/")
+			indexPath := filepath.Join(staticDir, cleanPath, "index.html")
+			if _, err := os.Stat(indexPath); err == nil {
+				return c.SendFile(indexPath)
+			}
+
+			htmlPath := filepath.Join(staticDir, cleanPath+".html")
+			if _, err := os.Stat(htmlPath); err == nil {
+				return c.SendFile(htmlPath)
+			}
+
+			return c.SendFile(filepath.Join(staticDir, "index.html"))
+		})
+	}
 
 	log.Printf("listening on :%s", cfg.Server.Port)
 	if err := app.Listen(":" + cfg.Server.Port); err != nil {

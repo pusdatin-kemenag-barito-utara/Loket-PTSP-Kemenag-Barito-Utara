@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS kemenag_loket.tv_settings (
     custom_maklumat text NOT NULL DEFAULT '',
     office_address  text NOT NULL DEFAULT '',
     playlist        jsonb NOT NULL DEFAULT '[]'::jsonb,
+    theme           text NOT NULL DEFAULT 'light',
     updated_at      timestamptz NOT NULL DEFAULT now()
 );
 

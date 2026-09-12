@@ -6,7 +6,8 @@
     "frontend"
   ],
   "scripts": {
-    "dev": "concurrently -k -n FE,BE -c cyan,green \"npm:dev:fe\" \"npm:dev:be\"",
+    "dev": "infisical run --path=/loket-kemenag --env=dev -- npm run dev:all",
+    "dev:all": "concurrently -k -n FE,BE -c cyan,green \"npm:dev:fe\" \"npm:dev:be\"",
     "dev:fe": "cross-env ASTRO_DEV_BACKGROUND=1 npm run dev --workspace frontend",
     "dev:be": "cd backend && air",
     "build": "npm run build --workspace frontend",
@@ -16,7 +17,8 @@
     "install:all": "npm install && npm run install:be",
     "install:be": "cd backend && go mod download",
     "install:air": "go install github.com/air-verse/air@latest",
-    "seed": "cd backend && go run ./cmd/seed"
+    "seed": "infisical run --path=/loket-kemenag --env=dev -- npm run seed:raw",
+    "seed:raw": "cd backend && go run ./cmd/seed"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

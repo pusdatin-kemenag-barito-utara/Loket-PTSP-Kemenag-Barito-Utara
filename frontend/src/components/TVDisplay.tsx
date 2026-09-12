@@ -50,11 +50,22 @@ export default function TVDisplay() {
 	const [runningText, setRunningText] = React.useState(DEFAULT_RUNNING_TEXT);
 	const [customMaklumat, setCustomMaklumat] = React.useState<string>('');
 	const [officeAddress, setOfficeAddress] = React.useState<string>('Jl. Jenderal Sudirman No. 20, Muara Teweh, Barito Utara');
+	const [theme, setTheme] = React.useState<'light' | 'dark'>(() => {
+		try {
+			const saved = localStorage.getItem('ptsp_tv_theme');
+			if (saved === 'dark' || saved === 'light') return saved;
+			return 'light';
+		} catch {
+			return 'light';
+		}
+	});
 
 	// Load stored settings on mount and listen to storage events
 	React.useEffect(() => {
 		const syncSettings = () => {
 			try {
+				const savedTheme = localStorage.getItem('ptsp_tv_theme');
+				if (savedTheme === 'light' || savedTheme === 'dark') setTheme(savedTheme);
 				const savedVideo = localStorage.getItem('ptsp_tv_video_id');
 				if (savedVideo !== null) setVideoId(savedVideo);
 				const savedText = localStorage.getItem('ptsp_tv_running_text');
@@ -134,6 +145,12 @@ export default function TVDisplay() {
 					if (tvSet.running_text) setRunningText(tvSet.running_text);
 					if (tvSet.custom_maklumat) setCustomMaklumat(tvSet.custom_maklumat);
 					if (tvSet.office_address) setOfficeAddress(tvSet.office_address);
+					if (tvSet.theme === 'light' || tvSet.theme === 'dark') {
+						setTheme(tvSet.theme);
+						try {
+							localStorage.setItem('ptsp_tv_theme', tvSet.theme);
+						} catch {}
+					}
 					if (Array.isArray(tvSet.playlist) && tvSet.playlist.length > 0) {
 						setPlaylist(tvSet.playlist);
 						try {
@@ -215,6 +232,12 @@ export default function TVDisplay() {
 					if (set.running_text) setRunningText(set.running_text);
 					if (set.custom_maklumat) setCustomMaklumat(set.custom_maklumat);
 					if (set.office_address) setOfficeAddress(set.office_address);
+					if (set.theme === 'light' || set.theme === 'dark') {
+						setTheme(set.theme);
+						try {
+							localStorage.setItem('ptsp_tv_theme', set.theme);
+						} catch {}
+					}
 					if (Array.isArray(pl) && pl.length > 0) {
 						setPlaylist(pl);
 						try {
@@ -283,20 +306,31 @@ export default function TVDisplay() {
 		}
 	};
 
+	const isLight = theme === 'light';
+
 	return (
 		<div
-			className="relative flex h-screen w-screen flex-col overflow-hidden bg-slate-950 font-sans text-slate-100 select-none"
-			style={{ backgroundColor: '#020617' }}
+			className={`relative flex h-screen w-screen flex-col overflow-hidden font-sans select-none transition-colors duration-300 ${
+				isLight ? 'bg-slate-100 text-slate-800' : 'bg-slate-950 text-slate-100'
+			}`}
+			style={isLight ? { backgroundColor: '#f1f5f9' } : { backgroundColor: '#020617' }}
 		>
 			{/* Ambient Backlight Glow */}
-			<div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,rgba(0,104,56,0.35),transparent_65%)]" />
-			<div className="pointer-events-none absolute bottom-0 right-0 -z-10 h-96 w-96 rounded-full bg-kmenag-gold/5 blur-3xl" />
+			{isLight ? (
+				<div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,rgba(0,104,56,0.08),transparent_65%)]" />
+			) : (
+				<>
+					<div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,rgba(0,104,56,0.35),transparent_65%)]" />
+					<div className="pointer-events-none absolute bottom-0 right-0 -z-10 h-96 w-96 rounded-full bg-kmenag-gold/5 blur-3xl" />
+				</>
+			)}
 
-			{/* 1. Dedicated TV Header Bar (Mute & Fullscreen Only) */}
+			{/* 1. Dedicated TV Header Bar */}
 			<TVHeader
 				connected={connected}
 				now={now}
 				audioEnabled={audioEnabled}
+				theme={theme}
 				onToggleAudio={handleToggleAudio}
 				onToggleFullscreen={handleToggleFullscreen}
 			/>
@@ -305,9 +339,9 @@ export default function TVDisplay() {
 			<AudioBanner unlocked={audioUnlocked} onEnable={handleEnableAudio} />
 
 			{/* 3. Main Widescreen Body (7 cols Media + 5 cols Queue) */}
-			<main className="grid flex-1 grid-cols-1 gap-5 overflow-hidden p-5 lg:grid-cols-12">
+			<main className="grid flex-1 grid-cols-1 gap-4 overflow-hidden p-3.5 sm:p-4 lg:grid-cols-12 min-h-0">
 				{/* Left Column: Media Presentation / Video & Live Stats */}
-				<div className="flex flex-col gap-4 lg:col-span-7">
+				<div className="flex flex-col gap-3.5 lg:col-span-7 h-full min-h-0 justify-between">
 					<ErrorBoundary>
 						<TVVideoPlayer
 							playbackMode={playbackMode}
@@ -317,33 +351,37 @@ export default function TVDisplay() {
 							customMaklumat={customMaklumat}
 							audioEnabled={audioEnabled}
 							isCallingQueue={Boolean(recentlyCalledId)}
+							theme={theme}
 						/>
 					</ErrorBoundary>
 					<TVStatsBar
 						stats={stats}
 						waitingCount={(waiting || []).length}
 						calledCount={current ? 1 : 0}
+						theme={theme}
 					/>
 				</div>
 
 				{/* Right Column: Hero Active Call & Multi-Loket Grid */}
-				<div className="flex flex-col gap-4 lg:col-span-5">
+				<div className="flex flex-col gap-3.5 lg:col-span-5 h-full min-h-0 justify-between">
 					<TVCallHero
 						current={current}
 						isRecentlyCalled={Boolean(current && recentlyCalledId === current.id)}
 						history={history}
+						theme={theme}
 					/>
 					<TVLoketGrid
 						categories={categories || []}
 						waitingList={waiting || []}
 						currentQueue={current}
 						recentlyCalledId={recentlyCalledId}
+						theme={theme}
 					/>
 				</div>
 			</main>
 
 			{/* 4. Running Text Marquee Footer */}
-			<TVTicker runningText={runningText} />
+			<TVTicker runningText={runningText} theme={theme} />
 		</div>
 	);
 }

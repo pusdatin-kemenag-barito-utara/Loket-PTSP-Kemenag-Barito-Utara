@@ -4,5 +4,21 @@ import AdminApp from '../components/AdminApp';
 ---
 
 <Layout title="Portal Admin PTSP - Kemenag Barito Utara" noFooter>
-	<AdminApp client:load />
+	<head slot="head">
+		<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0" />
+		<meta http-equiv="Pragma" content="no-cache" />
+		<meta http-equiv="Expires" content="0" />
+	</head>
+
+	<script is:inline>
+		// Anti-BFCache & History Traversal Guard:
+		// If user navigates back/forward after logout, immediately force page reload to trigger fresh auth check
+		window.addEventListener('pageshow', function (event) {
+			if (event.persisted) {
+				window.location.reload();
+			}
+		});
+	</script>
+
+	<AdminApp client:only="react" />
 </Layout>

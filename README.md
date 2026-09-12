@@ -20,11 +20,11 @@ Satu perintah dari repo root menyalakan backend (Go Fiber, hot-reload via AIR) d
 # - Go 1.24+ (air: go install github.com/air-verse/air@latest)
 # - Node.js 22+
 
-# Env (WAJIB ada di repo root): salin nilai EC dev dari Infisical manual ke .env
-# .env gitignored — berisi DATABASE_URL, JWT_SECRET, TURNSTILE_*, PUBLIC_API_URL, dst.
+# Env terpusat di Infisical Cloud (Zero Local .env):
+# Seluruh rahasia & konfigurasi ditarik otomatis dari Infisical Cloud (/loket-kemenag)
 
 npm install            # root: workspaces (frontend) + concurrently + cross-env
-npm run dev            # => FE http://localhost:3000 + BE :8080 (AIR hot reload)
+npm run dev:infisical  # => FE http://localhost:3000 + BE :8080 (injeksi env Infisical Cloud)
 ```
 
 Opsional, jalankan terpisah:
@@ -61,9 +61,9 @@ Run all three with `go run ./cmd/seed`. It is safe to run repeatedly.
 | `/admin` | Admin dashboard (call/recall/adjust) |
 | `/login` | Admin login (Turnstile + JWT) |
 
-## Backend Configuration (`.env` — satu file di repo ROOT)
-
-Satu `.env` di root adalah sumber konfigurasi tunggal: backend membacanya via `config.LoadEnv()` (mencari `../.env`), frontend membacanya via `envDir` Astro ke root. Tidak ada `.env.example` — nilai diambil dari Infisical (workspace EC dev) saat onboarding.
+## Configuration & Secrets (Infisical Cloud)
+ 
+Seluruh rahasia dan konfigurasi lingkungan (`dev` & `prod`) dikelola terpusat di **Infisical Cloud** pada path `/loket-kemenag`. File `.env` lokal dan `.env.example` sudah tidak digunakan (Zero Local Env Files). Saat onboarding atau deployment, kredensial diinjeksi langsung dari Infisical Cloud ke proses runtime.
 
 | Var | Description |
 |-----|-------------|

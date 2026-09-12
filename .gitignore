@@ -1,41 +1,60 @@
-# dependencies
+# Dependencies
 node_modules/
+**/node_modules/
 .pnp
 .pnp.js
 .packages
 
-# build
+# Astro, Vite & Build Artifacts
 dist/
+**/dist/
 build/
+**/build/
 .output/
+.astro/
+**/.astro/
+.vite/
+**/.vite/
 .vercel/
 
-# env
+# Environment Variables & Local Secrets
 .env
+.env.*
 .env.local
 .env.*.local
+!.env.example
 
-# Go
-/backend/tmp/
-/backend/bin/
+# Go Binaries & Temporary Artifacts (Air / go build)
+bin/
+**/bin/
+tmp/
+**/tmp/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# debug
+# Logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# misc
-*.log
+# OS & Editor Files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing & Cache
 coverage/
 .cache/
+
