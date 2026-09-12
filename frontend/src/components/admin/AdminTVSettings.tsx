@@ -345,14 +345,21 @@ export default function AdminTVSettings() {
 
 		try {
 			setIsUploadingVideo(true);
+			const initialMB = (file.size / (1024 * 1024)).toFixed(1);
 			setToast({
 				type: 'info',
 				title: 'Mengunggah Video ke Cloudflare R2...',
-				message: `Mengunggah "${file.name}" (${(file.size / (1024 * 1024)).toFixed(1)} MB) ke Cloudflare R2... Harap tunggu sebentar.`,
+				message: `Mengunggah "${file.name}" (${initialMB} MB) via Chunking... Harap tunggu sebentar.`,
 			});
 
-			// 1. Upload to Cloudflare R2 via Backend API
-			const uploadRes = await api.uploadMedia(file);
+			// 1. Upload to Cloudflare R2 via Backend API with live chunking progress
+			const uploadRes = await api.uploadMedia(file, (p) => {
+				setToast({
+					type: 'info',
+					title: `Mengunggah Video (${p.percent}%)...`,
+					message: `Bagian ${p.currentChunk}/${p.totalChunks} (${p.currentMB} MB / ${p.totalMB} MB) terkirim...`,
+				});
+			});
 
 			// 2. Also save to local IndexedDB for immediate local playback & offline backup
 			let meta: StoredVideoItem | null = null;

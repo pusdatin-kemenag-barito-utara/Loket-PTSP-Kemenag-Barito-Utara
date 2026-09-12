@@ -145,6 +145,7 @@ func main() {
 	// TV & Media Management (Cloudflare R2)
 	admin.Put("/tv/settings", tvH.UpdateSettings)
 	admin.Post("/media/upload", tvH.UploadMedia)
+	admin.Post("/media/upload-chunk", tvH.UploadChunk)
 
 	// User Management (CRUD)
 	admin.Get("/users", userH.List)

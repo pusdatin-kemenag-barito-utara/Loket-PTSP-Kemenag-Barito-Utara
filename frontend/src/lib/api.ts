@@ -124,22 +124,80 @@ export const api = {
 			body: JSON.stringify(payload),
 		});
 	},
-	uploadMedia: async (file: File) => {
-		const formData = new FormData();
-		formData.append('file', file);
-		const res = await fetch(`${API_BASE}/api/v1/media/upload`, {
-			method: 'POST',
-			credentials: 'include',
-			body: formData,
-		});
-		if (!res.ok) {
-			let message = `Upload gagal (${res.status})`;
-			try {
-				const body = await res.json();
-				message = body?.message ?? body?.error ?? message;
-			} catch {}
-			throw new ApiError(message, res.status);
+	uploadMedia: async (
+		file: File,
+		onProgress?: (progress: { percent: number; currentChunk: number; totalChunks: number; currentMB: number; totalMB: number }) => void
+	) => {
+		// Cloudflare Free/Pro has a strict 100MB body limit per request.
+		// We slice uploads into 15MB chunks to bypass Cloudflare 413 Payload Too Large error
+		// and support video uploads up to 300MB smoothly.
+		const CHUNK_SIZE = 15 * 1024 * 1024; // 15 MB
+		const totalChunks = Math.max(1, Math.ceil(file.size / CHUNK_SIZE));
+		const uploadId = `upl_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+		const totalMB = Number((file.size / (1024 * 1024)).toFixed(1));
+
+		let finalResponse: { ok: boolean; url: string; public_url?: string; name: string; size: number; key: string } | null = null;
+
+		for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+			const start = chunkIndex * CHUNK_SIZE;
+			const end = Math.min(start + CHUNK_SIZE, file.size);
+			const chunkBlob = file.slice(start, end);
+
+			const formData = new FormData();
+			formData.append('file', chunkBlob, file.name);
+			formData.append('upload_id', uploadId);
+			formData.append('chunk_index', chunkIndex.toString());
+			formData.append('total_chunks', totalChunks.toString());
+			formData.append('filename', file.name);
+			formData.append('content_type', file.type || 'video/mp4');
+
+			const res = await fetch(`${API_BASE}/api/v1/media/upload-chunk`, {
+				method: 'POST',
+				credentials: 'include',
+				body: formData,
+			});
+
+			if (!res.ok) {
+				let message = `Upload gagal pada bagian ${chunkIndex + 1}/${totalChunks} (${res.status})`;
+				try {
+					const body = await res.json();
+					message = body?.message ?? body?.error ?? message;
+				} catch {}
+				throw new ApiError(message, res.status);
+			}
+
+			const data = await res.json();
+			const percent = Math.min(99, Math.round(((chunkIndex + 1) / totalChunks) * 100));
+			const currentMB = Number((end / (1024 * 1024)).toFixed(1));
+			if (onProgress) {
+				onProgress({
+					percent,
+					currentChunk: chunkIndex + 1,
+					totalChunks,
+					currentMB,
+					totalMB,
+				});
+			}
+
+			if (chunkIndex === totalChunks - 1) {
+				finalResponse = data;
+			}
 		}
-		return res.json() as Promise<{ ok: boolean; url: string; name: string; size: number; key: string }>;
+
+		if (!finalResponse || !finalResponse.url) {
+			throw new ApiError('Gagal menyelesaikan penggabungan video di server', 500);
+		}
+
+		if (onProgress) {
+			onProgress({
+				percent: 100,
+				currentChunk: totalChunks,
+				totalChunks,
+				currentMB: totalMB,
+				totalMB,
+			});
+		}
+
+		return finalResponse;
 	},
 };

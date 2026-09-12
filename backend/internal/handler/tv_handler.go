@@ -2,7 +2,10 @@ package handler
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -147,6 +150,219 @@ func (h *TVHandler) UploadMedia(c fiber.Ctx) error {
 		"public_url": publicURL,
 		"name":       file.Filename,
 		"size":       file.Size,
+		"key":        objectKey,
+	})
+}
+
+// UploadChunk receives chunked uploads from frontend to bypass Cloudflare 100MB body limit.
+func (h *TVHandler) UploadChunk(c fiber.Ctx) error {
+	file, err := c.FormFile("file")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(model.ErrorResponse{
+			Error:   "bad_request",
+			Message: "Bagian file (chunk) tidak ditemukan dalam form upload",
+		})
+	}
+
+	uploadID := strings.TrimSpace(c.FormValue("upload_id"))
+	if uploadID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(model.ErrorResponse{
+			Error:   "bad_request",
+			Message: "upload_id harus diisi",
+		})
+	}
+	var cleanUploadID strings.Builder
+	for _, r := range uploadID {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+			cleanUploadID.WriteRune(r)
+		}
+	}
+	uploadID = cleanUploadID.String()
+	if uploadID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(model.ErrorResponse{
+			Error:   "bad_request",
+			Message: "upload_id tidak valid",
+		})
+	}
+
+	chunkIndex, err := strconv.Atoi(c.FormValue("chunk_index"))
+	if err != nil || chunkIndex < 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(model.ErrorResponse{
+			Error:   "bad_request",
+			Message: "chunk_index tidak valid",
+		})
+	}
+
+	totalChunks, err := strconv.Atoi(c.FormValue("total_chunks"))
+	if err != nil || totalChunks <= 0 || totalChunks > 100 {
+		return c.Status(fiber.StatusBadRequest).JSON(model.ErrorResponse{
+			Error:   "bad_request",
+			Message: "total_chunks tidak valid (maksimal 100 bagian)",
+		})
+	}
+
+	if chunkIndex >= totalChunks {
+		return c.Status(fiber.StatusBadRequest).JSON(model.ErrorResponse{
+			Error:   "bad_request",
+			Message: "chunk_index melebihi total_chunks",
+		})
+	}
+
+	filename := strings.TrimSpace(c.FormValue("filename"))
+	if filename == "" {
+		filename = file.Filename
+	}
+
+	ext := strings.ToLower(filepath.Ext(filename))
+	allowed := map[string]bool{
+		".mp4":  true,
+		".webm": true,
+		".mov":  true,
+		".mkv":  true,
+		".jpg":  true,
+		".jpeg": true,
+		".png":  true,
+		".webp": true,
+	}
+	if !allowed[ext] {
+		return c.Status(fiber.StatusBadRequest).JSON(model.ErrorResponse{
+			Error:   "invalid_type",
+			Message: "Hanya format video MP4, WebM, MOV atau gambar JPG/PNG/WebP yang didukung",
+		})
+	}
+
+	tempDir := filepath.Join(os.TempDir(), "ptsp_uploads", uploadID)
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(model.ErrorResponse{
+			Error:   "temp_dir_failed",
+			Message: "Gagal menyiapkan direktori penyimpanan sementara",
+		})
+	}
+
+	chunkPath := filepath.Join(tempDir, fmt.Sprintf("chunk_%04d", chunkIndex))
+	if err := c.SaveFile(file, chunkPath); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(model.ErrorResponse{
+			Error:   "chunk_save_failed",
+			Message: fmt.Sprintf("Gagal menyimpan bagian upload %d: %v", chunkIndex, err),
+		})
+	}
+
+	// If not final chunk, acknowledge reception
+	if chunkIndex < totalChunks-1 {
+		return c.JSON(fiber.Map{
+			"ok":           true,
+			"chunk_index":  chunkIndex,
+			"total_chunks": totalChunks,
+			"completed":    false,
+		})
+	}
+
+	// Final chunk received! Assemble all chunks sequentially.
+	assembledPath := filepath.Join(tempDir, "assembled_media"+ext)
+	outFile, err := os.Create(assembledPath)
+	if err != nil {
+		_ = os.RemoveAll(tempDir)
+		return c.Status(fiber.StatusInternalServerError).JSON(model.ErrorResponse{
+			Error:   "assembly_failed",
+			Message: "Gagal membuat file gabungan di server",
+		})
+	}
+
+	for i := 0; i < totalChunks; i++ {
+		partPath := filepath.Join(tempDir, fmt.Sprintf("chunk_%04d", i))
+		partFile, err := os.Open(partPath)
+		if err != nil {
+			outFile.Close()
+			_ = os.RemoveAll(tempDir)
+			return c.Status(fiber.StatusBadRequest).JSON(model.ErrorResponse{
+				Error:   "missing_chunk",
+				Message: fmt.Sprintf("Bagian upload ke-%d hilang atau belum selesai", i+1),
+			})
+		}
+		_, err = io.Copy(outFile, partFile)
+		partFile.Close()
+		if err != nil {
+			outFile.Close()
+			_ = os.RemoveAll(tempDir)
+			return c.Status(fiber.StatusInternalServerError).JSON(model.ErrorResponse{
+				Error:   "copy_chunk_failed",
+				Message: fmt.Sprintf("Gagal menggabungkan bagian upload ke-%d", i+1),
+			})
+		}
+	}
+	outFile.Close()
+
+	assembledStat, err := os.Stat(assembledPath)
+	if err != nil || assembledStat.Size() > 300*1024*1024 {
+		_ = os.RemoveAll(tempDir)
+		return c.Status(fiber.StatusBadRequest).JSON(model.ErrorResponse{
+			Error:   "file_too_large",
+			Message: "Ukuran total file video melebihi batas 300MB",
+		})
+	}
+
+	assembledFile, err := os.Open(assembledPath)
+	if err != nil {
+		_ = os.RemoveAll(tempDir)
+		return c.Status(fiber.StatusInternalServerError).JSON(model.ErrorResponse{
+			Error:   "open_assembled_failed",
+			Message: "Gagal membaca file hasil penggabungan",
+		})
+	}
+	defer assembledFile.Close()
+	defer os.RemoveAll(tempDir)
+
+	var cleanBuilder strings.Builder
+	for _, r := range strings.ToLower(filename) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '.' || r == '-' || r == '_' {
+			cleanBuilder.WriteRune(r)
+		} else {
+			cleanBuilder.WriteRune('_')
+		}
+	}
+	cleanName := cleanBuilder.String()
+	for strings.Contains(cleanName, "__") {
+		cleanName = strings.ReplaceAll(cleanName, "__", "_")
+	}
+	cleanName = strings.Trim(cleanName, "_")
+	if cleanName == "" || cleanName == ext {
+		cleanName = fmt.Sprintf("media%s", ext)
+	}
+	objectKey := fmt.Sprintf("videos/%d_%s", time.Now().Unix(), cleanName)
+
+	contentType := c.FormValue("content_type")
+	if contentType == "" {
+		switch ext {
+		case ".mp4":
+			contentType = "video/mp4"
+		case ".webm":
+			contentType = "video/webm"
+		case ".mov":
+			contentType = "video/quicktime"
+		case ".mkv":
+			contentType = "video/x-matroska"
+		default:
+			contentType = "application/octet-stream"
+		}
+	}
+
+	publicURL, err := h.R2.Upload(c.Context(), objectKey, assembledFile, assembledStat.Size(), contentType)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(model.ErrorResponse{
+			Error:   "r2_upload_failed",
+			Message: fmt.Sprintf("Gagal mengunggah ke Cloudflare R2: %v", err),
+		})
+	}
+
+	streamURL := fmt.Sprintf("/api/v1/media/stream/%s", objectKey)
+
+	return c.JSON(fiber.Map{
+		"ok":         true,
+		"completed":  true,
+		"url":        streamURL,
+		"public_url": publicURL,
+		"name":       filename,
+		"size":       assembledStat.Size(),
 		"key":        objectKey,
 	})
 }
