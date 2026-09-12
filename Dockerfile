@@ -48,13 +48,13 @@ RUN cp /usr/share/zoneinfo/Asia/Jakarta /etc/localtime && echo "Asia/Jakarta" > 
 COPY --from=backend-builder /app/server /app/server
 COPY --from=frontend-builder /app/frontend/dist /app/dist
 ENV STATIC_DIR=/app/dist
-ENV PORT=8080
+ENV PORT=3000
 
 # Setup entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-EXPOSE 8080
+EXPOSE 3000
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["/app/server"]

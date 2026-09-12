@@ -96,7 +96,7 @@ func Load() *Config {
 
 	cfg := &Config{}
 
-	cfg.Server.Port = getEnv("PORT", "8080")
+	cfg.Server.Port = getEnv("PORT", "3000")
 	cfg.Server.Env = getEnv("APP_ENV", "development")
 	cfg.Server.Origins = getEnv("CORS_ORIGINS", "http://localhost:3000,http://localhost:4321")
 
