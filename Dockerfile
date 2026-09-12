@@ -9,10 +9,10 @@
 FROM node:22-bookworm-slim AS frontend-builder
 WORKDIR /app
 
-# Install dependencies with Linux platform bindings
-COPY package*.json ./
-COPY frontend/package*.json ./frontend/
-RUN npm install
+# Install dependencies with Linux platform bindings (omit Windows package-lock to avoid platform-lock bug)
+COPY package.json ./
+COPY frontend/package.json ./frontend/
+RUN npm install && npm install -w loket-ptsp-frontend @rolldown/binding-linux-x64-gnu
 
 # Copy frontend source and build Astro static site
 COPY frontend/ ./frontend/
