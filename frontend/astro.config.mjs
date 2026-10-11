@@ -24,7 +24,7 @@ vite: {
 			},
 		},
 	output: 'static',
-	site: 'https://loket.kemenag-baritoutara.com',
+	site: process.env.SITE_URL || 'https://loket.kemenag-baritoutara.com',
 	server: {
 		host: true,
 		port: 3000,

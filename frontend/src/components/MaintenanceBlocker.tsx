@@ -2,18 +2,25 @@ import React from 'react';
 import { api } from '../lib/api';
 import { connectRealtime } from '../lib/realtime';
 
-const PUSDATIN_MAINTENANCE_URL =
-	'https://pusdatin.kemenag-baritoutara.com/maintenance?app=loket_ptsp_kemenag';
+const initialStaticBase =
+	(import.meta.env.PUBLIC_PUSDATIN_URL as string | undefined) ||
+	(import.meta.env.NEXT_PUBLIC_PUSDATIN_URL as string | undefined) ||
+	'';
+
+const DEFAULT_MAINTENANCE_URL = initialStaticBase
+	? `${initialStaticBase}/maintenance?app=loket_ptsp_kemenag`
+	: '/maintenance';
 
 /**
  * MaintenanceBlocker:
  * 1. Checks maintenance status dynamically on initial mount (with 5-minute sessionStorage cache).
- * 2. Connects to backend WebSocket to listen for 'maintenance_changed' events in realtime,
- *    eliminating repetitive HTTP polling and saving VPS resources.
- * 3. Renders the official Pusdatin maintenance UI (official iframe with authentic native fallback).
+ * 2. Fetches dynamic Pusdatin maintenance URL runtime from backend (injected via Infisical SATELLITE_URL).
+ * 3. Connects to backend WebSocket to listen for 'maintenance_changed' events in realtime.
+ * 4. Renders the official Pusdatin maintenance UI (official iframe with authentic native fallback).
  */
 export default function MaintenanceBlocker() {
 	const [maintenance, setMaintenance] = React.useState(false);
+	const [maintenanceUrl, setMaintenanceUrl] = React.useState(DEFAULT_MAINTENANCE_URL);
 	const [iframeLoaded, setIframeLoaded] = React.useState(false);
 
 	React.useEffect(() => {
@@ -23,7 +30,11 @@ export default function MaintenanceBlocker() {
 		const check = async () => {
 			try {
 				const cached = sessionStorage.getItem('pusdatin_maint_status');
+				const cachedUrl = sessionStorage.getItem('pusdatin_maint_url');
 				const cachedTime = sessionStorage.getItem('pusdatin_maint_time');
+				if (cachedUrl) {
+					setMaintenanceUrl(cachedUrl);
+				}
 				if (cached !== null && cachedTime && Date.now() - Number(cachedTime) < 300_000) {
 					if (!cancelled) setMaintenance(cached === 'true');
 					return;
@@ -32,6 +43,10 @@ export default function MaintenanceBlocker() {
 				const res = await api.maintenance();
 				if (!cancelled) {
 					setMaintenance(res.maintenance);
+					if (res.maintenance_url) {
+						setMaintenanceUrl(res.maintenance_url);
+						sessionStorage.setItem('pusdatin_maint_url', res.maintenance_url);
+					}
 					sessionStorage.setItem('pusdatin_maint_status', String(res.maintenance));
 					sessionStorage.setItem('pusdatin_maint_time', String(Date.now()));
 				}
@@ -45,10 +60,14 @@ export default function MaintenanceBlocker() {
 		// 2. Realtime WebSocket listener: reacts immediately when status changes in database
 		const conn = connectRealtime((msg) => {
 			if (msg.type === 'maintenance_changed') {
-				const data = msg.data as { maintenance: boolean } | undefined;
+				const data = msg.data as { maintenance: boolean; maintenance_url?: string } | undefined;
 				const isMaint = Boolean(data?.maintenance);
 				if (!cancelled) {
 					setMaintenance(isMaint);
+					if (data?.maintenance_url) {
+						setMaintenanceUrl(data.maintenance_url);
+						sessionStorage.setItem('pusdatin_maint_url', data.maintenance_url);
+					}
 					sessionStorage.setItem('pusdatin_maint_status', String(isMaint));
 					sessionStorage.setItem('pusdatin_maint_time', String(Date.now()));
 				}
@@ -67,7 +86,7 @@ export default function MaintenanceBlocker() {
 		<div className="fixed inset-0 z-[99999] h-screen w-screen overflow-hidden bg-slate-50 font-sans">
 			{/* Official Pusdatin iframe for 100% exact styling & dynamic content */}
 			<iframe
-				src={PUSDATIN_MAINTENANCE_URL}
+				src={maintenanceUrl}
 				onLoad={() => setIframeLoaded(true)}
 				className={`h-full w-full border-0 outline-none transition-opacity duration-300 ${
 					iframeLoaded ? 'opacity-100' : 'opacity-0'

@@ -26,47 +26,21 @@ type PusdatinRepository struct {
 	lastChecked  time.Time
 }
 
-type satelliteApp struct {
-	ID     string `db:"id" json:"id"`
-	Name   string `db:"name" json:"name"`
-	Status string `db:"status" json:"status"`
-}
-
-// CheckStatusDB performs the live check against kemenag_pusdatin.satellite_apps table.
-func (r *PusdatinRepository) CheckStatusDB(ctx context.Context) (bool, error) {
+// CheckStatus performs the live check against the satellite service endpoint.
+func (r *PusdatinRepository) CheckStatus(ctx context.Context) (bool, error) {
 	if strings.Contains(strings.ToLower(r.SatelliteURL), "maintenance") {
 		return true, nil
 	}
-
-	needle := r.Slug
-	if needle == "" {
-		needle = "loket_ptsp_kemenag"
-	}
-
-	var apps []satelliteApp
-	err := r.DB.SelectContext(ctx, &apps, `
-		SELECT id, name, status
-		FROM kemenag_pusdatin.satellite_apps
-		WHERE id = $1 OR lower(name) LIKE '%' || lower($1) || '%'
-		LIMIT 1`, needle)
-	if err != nil {
-		return r.httpFallback(ctx)
-	}
-
-	inMaint := false
-	if len(apps) > 0 {
-		inMaint = strings.ToLower(apps[0].Status) == "maintenance"
-	}
-	return inMaint, nil
+	return r.httpFallback(ctx)
 }
 
-// StartWatcher checks the database every interval (e.g. 10s) and broadcasts
+// StartWatcher checks the service every interval (e.g. 10s) and broadcasts
 // EventMaintenanceChanged to WebSocket clients immediately when the status changes.
 func (r *PusdatinRepository) StartWatcher(ctx context.Context, hub *realtime.Hub, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	go func() {
 		// Run initial check immediately
-		inMaint, err := r.CheckStatusDB(ctx)
+		inMaint, err := r.CheckStatus(ctx)
 		if err == nil {
 			r.mu.Lock()
 			r.cachedStatus = inMaint
@@ -81,7 +55,7 @@ func (r *PusdatinRepository) StartWatcher(ctx context.Context, hub *realtime.Hub
 				return
 			case <-ticker.C:
 				checkCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				inMaint, err := r.CheckStatusDB(checkCtx)
+				inMaint, err := r.CheckStatus(checkCtx)
 				cancel()
 
 				if err == nil {
@@ -93,8 +67,18 @@ func (r *PusdatinRepository) StartWatcher(ctx context.Context, hub *realtime.Hub
 					r.mu.Unlock()
 
 					if changed {
+						maintURL := ""
+						satURL := strings.TrimRight(r.SatelliteURL, "/")
+						if satURL != "" {
+							slug := r.Slug
+							if slug == "" {
+								slug = "loket_ptsp_kemenag"
+							}
+							maintURL = fmt.Sprintf("%s/maintenance?app=%s", satURL, slug)
+						}
 						hub.Broadcast(realtime.EventMaintenanceChanged, map[string]any{
-							"maintenance": inMaint,
+							"maintenance":     inMaint,
+							"maintenance_url": maintURL,
 						})
 					}
 				}
@@ -103,7 +87,7 @@ func (r *PusdatinRepository) StartWatcher(ctx context.Context, hub *realtime.Hub
 	}()
 }
 
-// IsMaintenance returns the cached maintenance state instantly (0ms, 0 database overhead).
+// IsMaintenance returns the cached maintenance state instantly (0ms overhead).
 func (r *PusdatinRepository) IsMaintenance(ctx context.Context) (bool, error) {
 	r.mu.RLock()
 	if !r.lastChecked.IsZero() {
@@ -113,7 +97,7 @@ func (r *PusdatinRepository) IsMaintenance(ctx context.Context) (bool, error) {
 	}
 	r.mu.RUnlock()
 
-	inMaint, err := r.CheckStatusDB(ctx)
+	inMaint, err := r.CheckStatus(ctx)
 	if err != nil {
 		return false, err
 	}

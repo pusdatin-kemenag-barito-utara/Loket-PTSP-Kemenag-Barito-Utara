@@ -27,11 +27,14 @@ import (
 
 func main() {
 	cfg := config.Load()
-	log.Printf("[Config] Environment terinjeksi: APP_ENV=%s, PORT=%s, Database terhubung=%t", cfg.Server.Env, cfg.Server.Port, cfg.Database.URL != "")
+	if err := cfg.Validate(); err != nil {
+		log.Fatalf("[Config Error] %v", err)
+	}
+	log.Printf("[Config] Environment terinjeksi dari Infisical: APP_ENV=%s, PORT=%s, PocketBase URL=%s", cfg.Server.Env, cfg.Server.Port, cfg.PocketBase.URL)
 
-	db, err := database.Connect(cfg.Database.URL)
+	db, err := database.Connect(cfg.PocketBase.URL, cfg.PocketBase.AdminEmail, cfg.PocketBase.AdminPassword)
 	if err != nil {
-		log.Fatalf("database: %v", err)
+		log.Fatalf("pocketbase: %v", err)
 	}
 	defer db.Close()
 
@@ -122,6 +125,7 @@ func main() {
 	v1 := app.Group("/api/v1")
 
 	// Public
+	v1.Get("/auth/config", authH.Config)
 	v1.Post("/auth/login", loginLimiter, authH.Login)
 	v1.Get("/categories", categoryH.List)
 	v1.Get("/stats", queueH.Stats)

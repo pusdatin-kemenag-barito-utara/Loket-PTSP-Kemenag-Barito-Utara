@@ -1,3 +1,9 @@
+# ==============================================================================
+# Standalone Backend Dockerfile (For backend-only development/testing)
+# Note: For full production deployment (Astro + Go + Infisical CLI),
+# use the root multi-stage Dockerfile located at /Dockerfile.
+# ==============================================================================
+
 # Build stage
 FROM golang:1.27-alpine AS builder
 

@@ -52,6 +52,7 @@ export const api = {
 		}),
 	logout: () => request<{ ok: boolean }>('/api/v1/auth/logout', { method: 'POST' }),
 	me: () => request<User>('/api/v1/auth/me'),
+	authConfig: () => request<{ turnstile_site_key: string }>('/api/v1/auth/config'),
 	callQueue: (queueId: string) =>
 		request<Queue>('/api/v1/queue/call', {
 			method: 'POST',
@@ -67,7 +68,10 @@ export const api = {
 			method: 'POST',
 			body: JSON.stringify({ queue_id: queueId, status }),
 		}),
-	maintenance: () => request<{ maintenance: boolean }>('/api/v1/pusdatin/maintenance'),
+	maintenance: () =>
+		request<{ maintenance: boolean; maintenance_url?: string; satellite_url?: string }>(
+			'/api/v1/pusdatin/maintenance',
+		),
 	users: () => request<User[]>('/api/v1/users'),
 	createUser: (data: { name: string; username: string; password: string; role?: string }) =>
 		request<User>('/api/v1/users', {

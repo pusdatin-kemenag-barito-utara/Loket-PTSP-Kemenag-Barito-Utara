@@ -1,5 +1,10 @@
+# Dependencies & Local Modules
 node_modules/
 **/node_modules/
+.pnp
+.pnp.js
+
+# Build Artifacts & Caches
 dist/
 **/dist/
 build/
@@ -9,13 +14,28 @@ build/
 **/.astro/
 .vite/
 **/.vite/
+
+# Git & IDE configs
 .git/
 .vscode/
 .idea/
+.agents/
+.infisical.json
+
+# Go Binaries, Temp & Logs
 tmp/
 **/tmp/
 bin/
 **/bin/
 *.exe
 *.log
+*.out
+*.test
+
+# Local Secrets (Zero Local Env Rule)
 .env*
+*.env*
+
+# Omit Windows Lockfile from Docker Build Context
+package-lock.json
+**/package-lock.json

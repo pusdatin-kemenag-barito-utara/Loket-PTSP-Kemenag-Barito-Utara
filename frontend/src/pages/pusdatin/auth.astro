@@ -7,17 +7,56 @@ import LoginForm from '../../components/LoginForm';
 const siteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? import.meta.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? '';
 ---
 
-<Layout title="Autentikasi Petugas Pusdatin" noFooter>
-	<header class="w-full border-b border-white/10 bg-night-900/80 backdrop-blur-xl">
-		<nav class="flex w-full items-center justify-between px-6 py-4">
-			<Logo />
-			<a href="/" class="btn btn-ghost px-4 py-2 text-sm">← Beranda TV</a>
+<Layout title="Autentikasi Petugas Pusdatin" noFooter darkBackground={true}>
+	<meta slot="head" http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0" />
+	<meta slot="head" http-equiv="Pragma" content="no-cache" />
+	<meta slot="head" http-equiv="Expires" content="0" />
+
+	<script is:inline>
+		// Anti-BFCache Guard: if restored from browser back-forward cache, force reload
+		window.addEventListener('pageshow', function (event) {
+			if (event.persisted) {
+				window.location.reload();
+			}
+		});
+	</script>
+
+	<!-- Ambient Lighting Background -->
+	<div class="fixed inset-0 pointer-events-none z-0">
+		<!-- Emerald Glow Top -->
+		<div class="absolute -top-40 left-1/2 -translate-x-1/2 h-[500px] w-[800px] rounded-full bg-emerald-600/15 blur-[120px]" />
+		<!-- Warm Gold Center Glow -->
+		<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[450px] w-[450px] rounded-full bg-amber-500/10 blur-[140px]" />
+		<!-- Subtle Tech Lattice Grid -->
+		<div
+			class="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)]"
+		/>
+	</div>
+
+	<!-- Top Institutional Header -->
+	<header class="relative z-10 w-full border-b border-emerald-500/15 bg-slate-950/70 backdrop-blur-xl">
+		<nav class="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-8 py-3.5">
+			<div class="flex items-center gap-3">
+				<Logo />
+				<span class="hidden sm:inline-block h-4 w-px bg-white/10" />
+				<span class="hidden sm:inline-block text-xs font-medium text-emerald-400/80">
+					Sistem Informasi Loket Terpadu
+				</span>
+			</div>
+			<a
+				href="/"
+				class="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-slate-900/60 px-3.5 py-2 text-xs font-semibold text-slate-300 transition-all hover:border-amber-400/40 hover:bg-slate-800/80 hover:text-white"
+			>
+				<span>← Beranda TV Display</span>
+			</a>
 		</nav>
 	</header>
 
-	<main class="relative flex min-h-[calc(100vh-5rem)] items-center justify-center px-4 pb-16">
+	<!-- Main Login Card Viewport -->
+	<main class="relative z-10 flex min-h-[calc(100vh-4.5rem)] items-center justify-center px-4 py-10 sm:py-16">
 		<LoginForm siteKey={siteKey} client:load />
 	</main>
 
+	<!-- Particle Embers Effect -->
 	<ParticleBackground client:load />
 </Layout>

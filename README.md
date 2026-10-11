@@ -7,8 +7,8 @@ Sistem antrian digital untuk Pelayanan Terpadu Satu Pintu (PTSP) Kantor Kementer
 | Layer | Tech | Dir |
 |-------|------|-----|
 | Frontend | Astro 7 + React 19 + Tailwind 4 | `frontend/` |
-| Backend | Go Fiber v3.5 + pgx + sqlx | `backend/` |
-| Database | PostgreSQL 16 (Supabase) | schema: `kemenag_loket` |
+| Backend | Go Fiber v3.5 | `backend/` |
+| Database | PocketBase (Primary Database) | `https://db-loket.kemenag-baritoutara.com` |
 | Realtime | WebSocket (Fiber) | `/api/v1/ws/queue` |
 
 ## Quick Start
@@ -34,21 +34,16 @@ npm run dev:fe         # Astro dev hanya (fetch/proxy tetap mengarah ke :8080)
 npm run dev:be         # backend + AIR hot reload hanya
 ```
 
-Database setup (sekali / idempotent — migrasi legacy schema + apply schema + seed):
+Database setup & verifikasi data (idempotent — cek & auto-seed data default ke PocketBase):
 
 ```bash
-cd backend && go run ./cmd/seed
+npm run seed  # atau: cd backend && go run ./cmd/seed
 ```
 
 ## Database
 
-| File | Purpose |
-|------|---------|
-| `backend/sql/migration_legacy.sql` | One-time in-place migration from the legacy Next.js/Drizzle schema (int ids, `password` column) to the new schema (uuid ids, `password_hash`), preserving users & categories |
-| `backend/sql/schema.sql` | Target schema (idempotent, `IF NOT EXISTS`) |
-| `backend/sql/seed.sql` | Seed user + categories (`ON CONFLICT`, preserves existing data) |
-
-Run all three with `go run ./cmd/seed`. It is safe to run repeatedly.
+Sistem database dikelola terpusat di **PocketBase** (`https://db-loket.kemenag-baritoutara.com`).
+Seluruh skema koleksi (`categories`, `queues`, `tv_settings`, dan `users`) telah aktif dan terkelola secara native di PocketBase. Runner `cmd/seed` berinteraksi langsung melalui REST API PocketBase secara aman menggunakan kredensial superuser yang diinjeksi dari Infisical Cloud.
 
 ## Pages
 
@@ -67,15 +62,17 @@ Seluruh rahasia dan konfigurasi lingkungan (`dev` & `prod`) dikelola terpusat di
 
 | Var | Description |
 |-----|-------------|
-| `DATABASE_URL` / `DIRECT_URL` | PostgreSQL DSN (schema `kemenag_loket`) |
+| `POCKETBASE_URL` | URL PocketBase (`https://db-loket.kemenag-baritoutara.com`) |
+| `POCKETBASE_ADMIN_EMAIL` / `POCKETBASE_ADMIN_PASSWORD` | Kredensial Superuser PocketBase |
 | `PORT` / `APP_ENV` / `CORS_ORIGINS` | Server fiber, mode, origin browser yang dibolehkan (`http://localhost:3000` di dev) |
 | `JWT_SECRET` / `JWT_TTL_HOURS` | Auth signing secret + token lifetime |
 | `TURNSTILE_SECRET_KEY` / `TURNSTILE_SITE_KEY` | Cloudflare Turnstile (secret kosong = skip captcha, lokal) |
 | `PUBLIC_API_URL` / `PUBLIC_WS_URL` | **Kosong = same-origin** (dev: diproksi Astro `:3000`; prod: reverse proxy). Isi hanya bila backend di host/port terpisah |
 | `PUBLIC_TURNSTILE_SITE_KEY` | Site key untuk Turnstile di frontend |
-| `SATELLITE_URL` / `SATELLITE_APP_SLUG` / `PUSDAIN_FALLBACK_MS` | Pusdatin satellite URL + slug maintenance check + timeout fallback |
+| `SATELLITE_URL` / `SATELLITE_APP_SLUG` / `PUSDATIN_FALLBACK_MS` | Pusdatin satellite URL + slug maintenance check + timeout fallback |
+| `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | Cloudflare R2 credentials untuk penyimpanan media TV Display |
+| `R2_BUCKET` / `R2_PUBLIC_URL` | Nama bucket R2 dan domain publik media assets (opsional) |
 | `SITE_URL` | URL publik situs |
-| `NEXT_PUBLIC_*` / `SUPABASE_SERVICE_ROLE_KEY` | Legacy (autentikasi Next.js lama) — dipertahankan, tidak dipakai Go stack |
 
 ## Deployment
 

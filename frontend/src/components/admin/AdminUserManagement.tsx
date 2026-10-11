@@ -256,7 +256,7 @@ export default function AdminUserManagement({ currentUser }: AdminUserManagement
 							) : (
 								filteredUsers.map((u) => {
 									const isSelf = currentUser?.id === u.id;
-									const isSuper = u.role === 'super_admin' || u.username === 'baritoutara@kemenag.go.id';
+									const isSuper = u.role === 'super_admin' || (u.name && u.name.toUpperCase().includes('KABUPATEN'));
 									const createdDate = u.created_at
 										? new Date(u.created_at).toLocaleDateString('id-ID', {
 												day: 'numeric',

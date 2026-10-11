@@ -1,18 +1,16 @@
-version: "3.8"
-
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: loket-postgres
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: loket-ptsp-app
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "${PORT:-3000}:3000"
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: postgres
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
-volumes:
-  pgdata:
+      - INFISICAL_API_URL=${INFISICAL_API_URL:-https://app.infisical.com/api}
+      - INFISICAL_CLIENT_ID=${INFISICAL_CLIENT_ID}
+      - INFISICAL_CLIENT_SECRET=${INFISICAL_CLIENT_SECRET}
+      - INFISICAL_PROJECT_ID=${INFISICAL_PROJECT_ID}
+      - INFISICAL_ENV=${INFISICAL_ENV:-dev}
+      - INFISICAL_SECRET_PATH=${INFISICAL_SECRET_PATH:-/loket-kemenag}

@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -41,10 +42,16 @@ var (
 )
 
 func (s *AuthService) Login(ctx context.Context, req *model.LoginRequest) (*model.LoginResponse, error) {
-	if s.Turnstile != nil {
+	if s.Turnstile != nil && s.Turnstile.SecretKey != "" {
+		if strings.TrimSpace(req.Token) == "" {
+			return nil, errors.New("harap selesaikan verifikasi captcha terlebih dahulu")
+		}
 		ok, err := s.Turnstile.Verify(ctx, req.Token)
 		if err != nil || !ok {
-			return nil, errors.New("verifikasi captcha Cloudflare gagal")
+			if err != nil {
+				return nil, err
+			}
+			return nil, errors.New("verifikasi captcha Cloudflare tidak valid atau sesi captcha kedaluwarsa, silakan muat ulang captcha")
 		}
 	}
 
@@ -147,10 +154,21 @@ func (c *TurnstileClient) Verify(ctx context.Context, token string) (bool, error
 	}
 
 	var result struct {
-		Success bool `json:"success"`
+		Success    bool     `json:"success"`
+		ErrorCodes []string `json:"error-codes"`
 	}
 	if err := json.Unmarshal(body, &result); err != nil {
 		return false, err
 	}
-	return result.Success, nil
+	if !result.Success {
+		if len(result.ErrorCodes) > 0 {
+			codeStr := strings.Join(result.ErrorCodes, ", ")
+			if strings.Contains(codeStr, "timeout-or-duplicate") {
+				return false, errors.New("sesi verifikasi captcha kedaluwarsa atau sudah pernah digunakan, silakan centang ulang")
+			}
+			return false, fmt.Errorf("verifikasi captcha Cloudflare gagal (%s)", codeStr)
+		}
+		return false, errors.New("verifikasi captcha Cloudflare tidak valid")
+	}
+	return true, nil
 }

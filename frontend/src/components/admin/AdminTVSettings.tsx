@@ -133,7 +133,7 @@ export default function AdminTVSettings() {
 			/* ignore */
 		}
 
-		// Fetch latest settings from database (Supabase via Go backend)
+		// Fetch latest settings from database (PocketBase via Go backend)
 		api.tvSettings()
 			.then((res) => {
 				if (!res) return;

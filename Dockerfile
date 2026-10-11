@@ -17,8 +17,6 @@ RUN npm install && npm install -w loket-ptsp-frontend @rolldown/binding-linux-x6
 # Copy frontend source and build Astro static site
 COPY frontend/ ./frontend/
 WORKDIR /app/frontend
-ARG PUBLIC_TURNSTILE_SITE_KEY=0x4AAAAAADR1O_LSp1lgc3km
-ENV PUBLIC_TURNSTILE_SITE_KEY=$PUBLIC_TURNSTILE_SITE_KEY
 RUN npm run build
 
 # --- Stage 2: Backend Build ---
@@ -36,8 +34,9 @@ FROM alpine:3.21 AS runner
 WORKDIR /app
 
 # Install system dependencies & Infisical CLI
-RUN apk add --no-cache ca-certificates tzdata curl bash \
-    && curl -1sLf 'https://dl.cloudsmith.io/public/infisical/infisical-cli/setup.alpine.sh' | bash \
+RUN apk add --no-cache ca-certificates tzdata curl bash wget \
+    && wget -qO- 'https://artifacts-cli.infisical.com/setup.apk.sh' | sh \
+    && apk update \
     && apk add --no-cache infisical
 
 # Set timezone to Asia/Jakarta (WIB)
@@ -55,6 +54,9 @@ COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD curl -f http://localhost:3000/health || exit 1
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["/app/server"]

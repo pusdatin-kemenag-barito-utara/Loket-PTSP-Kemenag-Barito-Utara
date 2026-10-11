@@ -119,10 +119,11 @@ func (s *R2Service) Upload(ctx context.Context, key string, body io.Reader, size
 	}
 
 	publicURL := strings.TrimSuffix(s.cfg.R2.PublicURL, "/")
-	if publicURL == "" {
-		publicURL = "https://pub-8f045be228ce4782863b2a6928a4957c.r2.dev"
+	if publicURL != "" {
+		return fmt.Sprintf("%s/%s", publicURL, encodedKey), nil
 	}
-	return fmt.Sprintf("%s/%s", publicURL, encodedKey), nil
+	// When custom public URL is not set in Infisical, fallback safely to backend stream route
+	return fmt.Sprintf("/api/v1/media/stream/%s", encodedKey), nil
 }
 
 // GetStream fetches an object stream from Cloudflare R2 using AWS SigV4, supporting byte ranges.

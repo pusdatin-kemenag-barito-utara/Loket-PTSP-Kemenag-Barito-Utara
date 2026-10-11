@@ -17,7 +17,7 @@ build/
 **/.vite/
 .vercel/
 
-# Environment Variables & Local Secrets
+# Environment Variables & Local Secrets (Zero Local Env Rule)
 .env
 .env.*
 .env.local
@@ -29,6 +29,7 @@ bin/
 **/bin/
 tmp/
 **/tmp/
+server.exe
 *.exe
 *.exe~
 *.dll
@@ -57,4 +58,3 @@ ehthumbs.db
 # Testing & Cache
 coverage/
 .cache/
-

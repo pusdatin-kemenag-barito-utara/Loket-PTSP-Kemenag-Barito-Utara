@@ -2,6 +2,7 @@ package config
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -14,8 +15,10 @@ type Config struct {
 		Env     string
 		Origins string
 	}
-	Database struct {
-		URL string
+	PocketBase struct {
+		URL           string
+		AdminEmail    string
+		AdminPassword string
 	}
 	JWT struct {
 		Secret string
@@ -100,9 +103,14 @@ func Load() *Config {
 	cfg.Server.Env = getEnv("APP_ENV", "development")
 	cfg.Server.Origins = getEnv("CORS_ORIGINS", "http://localhost:3000,http://localhost:4321")
 
-	cfg.Database.URL = getEnv("DATABASE_URL", "")
+	cfg.PocketBase.URL = getEnvFirst([]string{"POCKETBASE_URL", "PB_URL"}, "")
+	cfg.PocketBase.AdminEmail = getEnvFirst([]string{"POCKETBASE_ADMIN_EMAIL", "PB_ADMIN_EMAIL", "POCKETBASE_SUPERUSER_EMAIL"}, "")
+	cfg.PocketBase.AdminPassword = getEnvFirst([]string{"POCKETBASE_ADMIN_PASSWORD", "PB_ADMIN_PASSWORD", "POCKETBASE_SUPERUSER_PASSWORD"}, "")
 
 	cfg.JWT.Secret = getEnv("JWT_SECRET", "")
+	if cfg.JWT.Secret == "" && !cfg.IsProduction() {
+		cfg.JWT.Secret = "dev-secret-loket-kemenag-barito-utara-do-not-use-in-production"
+	}
 	cfg.JWT.TTL = time.Duration(getEnvInt("JWT_TTL_HOURS", 24)) * time.Hour
 
 	cfg.Turnstile.SecretKey = getEnv("TURNSTILE_SECRET_KEY", "")
@@ -110,13 +118,13 @@ func Load() *Config {
 
 	cfg.Pusdatin.SatelliteURL = getEnvFirst([]string{"SATELLITE_URL", "NEXT_PUBLIC_PUSDATIN_URL"}, "")
 	cfg.Pusdatin.SatelliteSlug = getEnv("SATELLITE_APP_SLUG", "")
-	cfg.Pusdatin.FallbackMS = getEnvInt("PUSDAIN_FALLBACK_MS", 3000)
+	cfg.Pusdatin.FallbackMS = getEnvIntFirst([]string{"PUSDATIN_FALLBACK_MS", "PUSDAIN_FALLBACK_MS"}, 3000)
 
 	cfg.R2.AccountID = getEnv("R2_ACCOUNT_ID", "")
 	cfg.R2.EndpointURL = getEnv("R2_ENDPOINT_URL", "")
 	cfg.R2.AccessKeyID = getEnv("R2_ACCESS_KEY_ID", "")
 	cfg.R2.SecretAccessKey = getEnv("R2_SECRET_ACCESS_KEY", "")
-	cfg.R2.Bucket = getEnv("R2_BUCKET", "loket-ptsp")
+	cfg.R2.Bucket = getEnvFirst([]string{"R2_BUCKET", "R2_BUCKET_NAME"}, "")
 	cfg.R2.PublicURL = getEnv("R2_PUBLIC_URL", "")
 
 	return cfg
@@ -124,6 +132,23 @@ func Load() *Config {
 
 func (c *Config) IsProduction() bool {
 	return c.Server.Env == "production"
+}
+
+// Validate ensures all crucial secrets are properly injected from Infisical Cloud.
+func (c *Config) Validate() error {
+	if c.PocketBase.URL == "" {
+		return fmt.Errorf("environment variable POCKETBASE_URL wajib terinjeksi dari Infisical Cloud")
+	}
+	if c.PocketBase.AdminEmail == "" {
+		return fmt.Errorf("environment variable POCKETBASE_ADMIN_EMAIL wajib terinjeksi dari Infisical Cloud")
+	}
+	if c.PocketBase.AdminPassword == "" {
+		return fmt.Errorf("environment variable POCKETBASE_ADMIN_PASSWORD wajib terinjeksi dari Infisical Cloud")
+	}
+	if c.JWT.Secret == "" || (c.IsProduction() && c.JWT.Secret == "dev-secret-loket-kemenag-barito-utara-do-not-use-in-production") {
+		return fmt.Errorf("environment variable JWT_SECRET wajib terinjeksi dari Infisical Cloud pada mode production")
+	}
+	return nil
 }
 
 func getEnv(key, fallback string) string {
@@ -146,6 +171,17 @@ func getEnvInt(key string, fallback int) int {
 	if v := os.Getenv(key); v != "" {
 		if i, err := strconv.Atoi(v); err == nil {
 			return i
+		}
+	}
+	return fallback
+}
+
+func getEnvIntFirst(keys []string, fallback int) int {
+	for _, key := range keys {
+		if v := os.Getenv(key); v != "" {
+			if i, err := strconv.Atoi(v); err == nil {
+				return i
+			}
 		}
 	}
 	return fallback
