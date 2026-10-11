@@ -58,6 +58,7 @@ func main() {
 	pusdatinRepo.StartWatcher(context.Background(), hub, 10*time.Second)
 
 	// Services
+	log.Printf("[Turnstile] Configured SiteKey: %s (SecretKey set: %v)", cfg.Turnstile.SiteKey, cfg.Turnstile.SecretKey != "")
 	authSvc := &service.AuthService{
 		Users:     userRepo,
 		Cfg:       cfg,

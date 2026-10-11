@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -125,14 +126,16 @@ func NewTurnstileClient(secretKey, siteKey string) *TurnstileClient {
 
 // Verify calls Cloudflare Turnstile siteverify endpoint.
 func (c *TurnstileClient) Verify(ctx context.Context, token string) (bool, error) {
-	if c.SecretKey == "" {
+	secret := strings.TrimSpace(c.SecretKey)
+	if secret == "" {
 		// No secret configured: allow (non-production default for local dev).
 		return true, nil
 	}
 
+	respToken := strings.TrimSpace(token)
 	form := url.Values{}
-	form.Set("secret", c.SecretKey)
-	form.Set("response", token)
+	form.Set("secret", secret)
+	form.Set("response", respToken)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
 		"https://challenges.cloudflare.com/turnstile/v0/siteverify",
@@ -161,6 +164,8 @@ func (c *TurnstileClient) Verify(ctx context.Context, token string) (bool, error
 		return false, err
 	}
 	if !result.Success {
+		log.Printf("[Turnstile] Verification failed: sitekey=%s, success=%v, error-codes=%v, response=%s",
+			c.SiteKey, result.Success, result.ErrorCodes, string(body))
 		if len(result.ErrorCodes) > 0 {
 			codeStr := strings.Join(result.ErrorCodes, ", ")
 			if strings.Contains(codeStr, "timeout-or-duplicate") {

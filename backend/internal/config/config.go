@@ -151,9 +151,19 @@ func (c *Config) Validate() error {
 	return nil
 }
 
+func cleanEnvValue(v string) string {
+	v = strings.TrimSpace(v)
+	if len(v) >= 2 {
+		if (v[0] == '"' && v[len(v)-1] == '"') || (v[0] == '\'' && v[len(v)-1] == '\'') {
+			v = strings.TrimSpace(v[1 : len(v)-1])
+		}
+	}
+	return v
+}
+
 func getEnv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
-		return v
+		return cleanEnvValue(v)
 	}
 	return fallback
 }
@@ -161,7 +171,7 @@ func getEnv(key, fallback string) string {
 func getEnvFirst(keys []string, fallback string) string {
 	for _, key := range keys {
 		if v := os.Getenv(key); v != "" {
-			return v
+			return cleanEnvValue(v)
 		}
 	}
 	return fallback
